@@ -54,6 +54,45 @@ validate_json() {
     return 0
 }
 
+# Extract main function name from plugin
+extract_function_name() {
+    local plugin_file="$1"
+    local function_name=""
+    
+    # Look for the main function call at the end of the file
+    # This searches for lines that are just function names (after validation comments)
+    function_name=$(tail -5 "$plugin_file" | grep -E "^[a-zA-Z_][a-zA-Z0-9_]*$" | tail -1)
+    
+    # If that doesn't work, extract from function definition and look for the main one
+    if [[ -z "$function_name" ]]; then
+        # Get all function definitions and find the one that matches the plugin purpose
+        local basename_plugin=$(basename "$plugin_file" .sh)
+        local plugin_type="${basename_plugin#*_}"  # Remove numeric prefix
+        
+        # Try to find a function that matches the plugin type
+        function_name=$(grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$plugin_file" | grep -i "$plugin_type" | head -1 | cut -d'(' -f1)
+        
+        # If still not found, get the first function definition that starts with 'get_'
+        if [[ -z "$function_name" ]]; then
+            function_name=$(grep -E "^get_[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$plugin_file" | head -1 | cut -d'(' -f1)
+        fi
+    fi
+    
+    # Final fallback: use filename-based naming
+    if [[ -z "$function_name" ]]; then
+        local basename_plugin=$(basename "$plugin_file" .sh)
+        local plugin_suffix="${basename_plugin#*_}"  # Remove numeric prefix
+        function_name="get_${plugin_suffix}"
+    fi
+    
+    echo "$function_name"
+}
+
+# Generate ISO 8601 timestamp
+get_timestamp() {
+    date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
 while getopts "o:h" opt; do
   case "$opt" in
     o) OUTPUT_FILE="$OPTARG" ;; 
@@ -79,24 +118,45 @@ if [[ ${#PLUGINS[@]} -eq 0 ]]; then
 fi
 
 ARCH=$(detect_arch)
+COLLECTION_START_TIME=$(get_timestamp)
+
+# Start with basic structure and collection metadata
 JSON="{\"detected_architecture\": \"$ARCH\","
+JSON+="\"collection_metadata\": {"
+JSON+="\"timestamp\": \"$COLLECTION_START_TIME\","
+JSON+="\"plugin_count\": ${#PLUGINS[@]}"
+JSON+="},"
 
 FIRST=1
 for plugin in "${PLUGINS[@]}"; do
-  OUTPUT="$($plugin "$ARCH")"
   plugin_basename=$(basename "$plugin")
+  function_name=$(extract_function_name "$plugin")
+  
+  # Capture execution time and output
+  start_time=$(get_timestamp)
+  OUTPUT="$($plugin "$ARCH")"
+  end_time=$(get_timestamp)
   
   if ! validate_json "$OUTPUT" "$plugin_basename"; then
     continue
   fi
   
-  FRAGMENT="${OUTPUT:1:-1}"
+  # Create the new structure with function name as key
   if [[ $FIRST -eq 1 ]]; then
-    JSON+="$FRAGMENT"
     FIRST=0
   else
-    JSON+=", $FRAGMENT"
+    JSON+=","
   fi
+  
+  # Strip the outer braces from plugin output to get just the content
+  PLUGIN_DATA="${OUTPUT:1:-1}"
+  
+  # Add plugin data with function name as key and timestamp
+  JSON+="\"$function_name\": {"
+  JSON+="\"data\": {$PLUGIN_DATA},"
+  JSON+="\"collection_timestamp\": \"$start_time\","
+  JSON+="\"completion_timestamp\": \"$end_time\""
+  JSON+="}"
 done
 
 JSON+="}"
