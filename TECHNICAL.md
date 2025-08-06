@@ -413,7 +413,7 @@ CMD ["./collect_info.sh"]
 - **No Elevation**: No `sudo` or privilege escalation required
 
 ### Attack Surface
-- **Plugin Directory**: Ensure proper permissions to prevent unauthorized plugin injection
+- **Plugin Directory**: Set directory permissions to `755` and plugin file permissions to `644`, with ownership by `root` (or the designated service user). Regularly verify plugin integrity using checksums or digital signatures to prevent unauthorized plugin injection.
 - **System Information**: No sensitive data collection (passwords, keys, etc.)
 - **Output Sanitization**: JSON escaping prevents injection in downstream systems
 
