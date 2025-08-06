@@ -24,6 +24,10 @@ This document provides in-depth technical details about the Automation_nation sy
 ├─────────────────────────────────────────────────────────────┤
 │ plugins/10_os_info.sh     - OS/Distribution Detection      │
 │ plugins/20_hardware_info.sh - Hardware Information         │
+│ plugins/30_ip_info.sh     - Network Interface Details      │
+│ plugins/31_network_stats.sh - Network Statistics/Routing   │
+│ plugins/32_lldp_neighbors.sh - LLDP/ARP/Bridge Information │
+│ plugins/50_uptime_info.sh - System Uptime Information      │
 │ plugins/[NN]_*.sh         - Future Extensions              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -182,6 +186,93 @@ case "$ARCH" in
 esac
 ```
 
+### Network Interface Plugin (30_ip_info.sh)
+
+#### Interface Discovery Strategy
+1. **Primary**: `ip link show` for modern Linux systems
+2. **Fallback**: `/proc/net/dev` for systems without iproute2
+3. **Alternative**: `ifconfig -a` for legacy systems
+
+#### Address Collection Algorithm
+```bash
+get_interface_info() {
+    local interface="$1"
+    
+    # IPv4 address collection
+    ip -4 addr show "$interface" | grep "inet " | awk '{print $2}'
+    
+    # IPv6 address collection  
+    ip -6 addr show "$interface" | grep "inet6 " | awk '{print $2}'
+    
+    # MAC, MTU, and state from link information
+    ip link show "$interface"
+}
+```
+
+#### Architecture-Specific Enhancements
+- **ARM Systems**: Enhanced Raspberry Pi detection via device tree
+- **Embedded Platforms**: Special handling for non-standard interface naming
+- **Container Environments**: Docker and LXC interface detection
+
+### Network Statistics Plugin (31_network_stats.sh)
+
+#### Multi-Source Statistics Collection
+
+| Data Source | Primary Tool | Fallback | Coverage |
+|-------------|--------------|----------|----------|
+| Interface Stats | `/proc/net/dev` | None | Universal Linux |
+| IPv4 Routes | `ip route` | `route -n`, `/proc/net/route` | Cross-platform |
+| IPv6 Routes | `ip -6 route` | `/proc/net/ipv6_route` | Modern systems |
+| Listening Ports | `ss -tuln` | `netstat -tuln` | Service discovery |
+| Multicast Groups | `/proc/net/igmp`, `/proc/net/igmp6` | None | Group membership |
+
+#### Route Parsing Implementation
+```bash
+# IPv4 route parsing with multiple fallbacks
+parse_ipv4_routes() {
+    if command -v ip >/dev/null 2>&1; then
+        ip -4 route show | while read -r line; do
+            destination=$(echo "$line" | awk '{print $1}')
+            gateway=$(echo "$line" | grep -o "via [^ ]*" | awk '{print $2}' || echo "direct")
+            interface=$(echo "$line" | grep -o "dev [^ ]*" | awk '{print $2}')
+            metric=$(echo "$line" | grep -o "metric [0-9]*" | awk '{print $2}' || echo "0")
+        done
+    elif command -v route >/dev/null 2>&1; then
+        # Fallback to route command
+    fi
+}
+```
+
+### LLDP/ARP Discovery Plugin (32_lldp_neighbors.sh)
+
+#### Network Discovery Hierarchy
+1. **LLDP Discovery**: `lldpctl` → `lldptool` → per-interface queries
+2. **ARP Table**: `ip neigh` → `arp -a` → `/proc/net/arp`
+3. **Bridge Detection**: `brctl show` → `bridge link` → Docker bridge API
+4. **Network Namespaces**: `ip netns list`
+
+#### LLDP Protocol Support
+```bash
+# Multi-protocol neighbor discovery
+discover_neighbors() {
+    # LLDP (Link Layer Discovery Protocol)
+    if command -v lldpctl >/dev/null 2>&1; then
+        lldpctl | parse_lldp_output
+    fi
+    
+    # CDP (Cisco Discovery Protocol) 
+    if command -v cdpctl >/dev/null 2>&1; then
+        cdpctl | parse_cdp_output  
+    fi
+}
+```
+
+#### Bridge Information Collection
+- **Linux Bridges**: Native kernel bridge detection
+- **Docker Bridges**: Container network bridge enumeration
+- **STP Status**: Spanning Tree Protocol state detection
+- **Port Membership**: Bridge port and interface relationships
+
 ### Hardware Information Plugin (20_hardware_info.sh)
 
 #### CPU Detection Matrix
@@ -217,9 +308,16 @@ fi
 ### Bats Testing Structure
 
 ```
-test-collect_info-sh/collect_info_test.bats     # Main orchestrator tests
-test-10_os_info-sh/os_info_test.bats          # OS plugin tests  
-test-20_hardware_info-sh/hardware_info_test.bats # Hardware plugin tests
+test/
+├── integration/
+│   └── collect_info_test.bats          # Main orchestrator tests
+└── plugins/
+    ├── 10_os_info_test.bats           # OS plugin tests
+    ├── 20_hardware_info_test.bats     # Hardware plugin tests  
+    ├── 30_ip_info_test.bats           # Network interface tests
+    ├── 31_network_stats_test.bats     # Network statistics tests
+    ├── 32_lldp_neighbors_test.bats    # LLDP/ARP plugin tests
+    └── 50_uptime_info_test.bats       # Uptime plugin tests
 ```
 
 ### Test Environment Isolation
