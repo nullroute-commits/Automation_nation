@@ -827,23 +827,6 @@ Validate JSON output:
 
 This project is available under the terms specified in the LICENSE file.
 
-## Directory Structure
-
-### Core Components
-- `collect_info.sh` - Main orchestrator script
-- `plugins/` - Plugin directory containing all data collection modules
-- `test/` - Comprehensive test suite using Bats framework
-
-### Placeholder Directories
-The `proj-SHA512_of_folder_creation_time/` directory contains placeholder subdirectories for future project extensions:
-- `application_configs/` - Reserved for application configuration files
-- `bare_metal_intelligence_gathering/` - Reserved for bare metal discovery scripts
-- `docker-compose-yaml/` - Reserved for Docker Compose configurations
-- `repo_cleanup_scripts/` - Reserved for repository maintenance scripts
-- `repo_init_scripts/` - Reserved for repository initialization scripts
-
-These directories currently contain placeholder README files and may be populated with content in future releases.
-
 ## Architecture Support Roadmap
 
 - **Current**: Top 10 architectures as of Q4 2024
