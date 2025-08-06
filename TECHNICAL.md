@@ -101,7 +101,19 @@ done
 #### Execution Flow
 ```bash
 for plugin in "${PLUGINS[@]}"; do
-  OUTPUT="$($plugin "$ARCH")"
+  # Capture stdout and stderr separately
+  OUTPUT="$("$plugin" "$ARCH" 2> >(cat >&3))" 3>plugin_stderr.log
+  PLUGIN_EXIT_CODE=$?
+  PLUGIN_STDERR=$(cat plugin_stderr.log)
+  rm -f plugin_stderr.log
+
+  if [[ $PLUGIN_EXIT_CODE -ne 0 ]]; then
+    # Sanitize error output before logging
+    echo "Error: Plugin $plugin failed to execute. See logs for details." >&2
+    # Optionally, log sanitized stderr to a secure location
+    # echo "$PLUGIN_STDERR" | sed 's/[[:cntrl:]]//g' >> /var/log/automation_nation/plugin_errors.log
+    continue
+  fi
   if [[ ! "$OUTPUT" =~ ^\{.*\}$ ]]; then
     echo "Warning: Plugin $plugin did not return valid JSON. Skipping." >&2
     continue
