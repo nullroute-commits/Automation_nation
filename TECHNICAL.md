@@ -27,6 +27,7 @@ This document provides in-depth technical details about the Automation_nation sy
 │ plugins/30_ip_info.sh     - Network Interface Details      │
 │ plugins/31_network_stats.sh - Network Statistics/Routing   │
 │ plugins/32_lldp_neighbors.sh - LLDP/ARP/Bridge Information │
+│ plugins/40_packages_execs.sh - Package and Executable Info │
 │ plugins/50_uptime_info.sh - System Uptime Information      │
 │ plugins/[NN]_*.sh         - Future Extensions              │
 └─────────────────────────────────────────────────────────────┘
@@ -303,6 +304,60 @@ fi
 - **Scope**: Root filesystem and standard mount points only
 - **Format**: Array of filesystem objects with usage metrics
 
+### Package and Executable Plugin (40_packages_execs.sh)
+
+#### Package Detection Strategy
+1. **Package Manager Detection**: Automatic detection of available package managers
+2. **Cross-Platform Support**: Handles multiple package managers per system
+3. **Version Parsing**: Extracts version information in standardized format
+4. **Configuration Discovery**: Maps package-specific configuration locations
+
+#### Supported Package Managers
+
+| Package Manager | Systems | Query Command | Version Format |
+|-----------------|---------|---------------|----------------|
+| dpkg | Debian/Ubuntu | `dpkg-query -W` | Package version with distribution |
+| rpm | Red Hat/CentOS/Fedora | `rpm -qa` | Name-Version-Release |
+| brew | macOS | `brew list --versions` | Package version |
+| pacman | Arch Linux | `pacman -Q` | Package version |
+| apk | Alpine Linux | `apk list -I` | Package-version |
+| pkg | FreeBSD | `pkg info` | Package version |
+
+#### Executable Discovery Algorithm
+```bash
+# Search standard executable paths
+search_paths="/usr/bin /usr/local/bin /bin"
+
+# Per-path discovery
+for path in $search_paths; do
+    find "$path" -maxdepth 1 -type f -executable
+done
+```
+
+#### Version Detection Strategy
+- **Common Tools**: Specific version detection for bash, python3, git, vim
+- **Standard Flags**: Attempts `--version`, `-V`, `-v` flags
+- **Fallback**: Reports "unknown" when version unavailable
+- **Performance**: Quick detection to avoid timeouts
+
+#### Configuration File Location Mapping
+```bash
+# Package-based configuration locations
+"/etc/$package.conf"
+"/etc/$package/"
+
+# Executable-based configuration locations  
+"/etc/$executable.conf"
+"~/.config/$executable"
+"~/.$executable rc"
+```
+
+#### Resource Management
+- **Configurable Limits**: `MAX_PACKAGES` and `MAX_EXECUTABLES` environment variables
+- **Efficient Processing**: Stream-based processing to handle large package lists
+- **Memory Conservation**: Limited output buffering
+- **Timeout Prevention**: Restricted version detection attempts
+
 ## Testing Framework Architecture
 
 ### Bats Testing Structure
@@ -317,6 +372,7 @@ test/
     ├── 30_ip_info_test.bats           # Network interface tests
     ├── 31_network_stats_test.bats     # Network statistics tests
     ├── 32_lldp_neighbors_test.bats    # LLDP/ARP plugin tests
+    ├── 40_packages_execs_test.bats    # Package/executable tests
     └── 50_uptime_info_test.bats       # Uptime plugin tests
 ```
 
