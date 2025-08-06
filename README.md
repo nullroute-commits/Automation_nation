@@ -9,10 +9,15 @@ This repository provides a flexible system information collection framework that
 ## Features
 
 - **Plugin-based Architecture**: Extensible design for easy addition of new data collectors
-- **Multi-Architecture Support**: Supports 10 major CPU architectures
+- **Multi-Architecture Support**: Supports 10 major CPU architectures  
 - **JSON Output**: Structured, machine-readable output format
 - **Automatic Plugin Discovery**: Dynamically finds and executes plugins
 - **Comprehensive Testing**: Full test coverage with Bats framework
+- **Network Discovery**: Advanced network interface, routing, and neighbor discovery
+- **Container Integration**: Docker bridge and network namespace detection
+- **Configurable Limits**: Environment variable configuration for performance tuning
+- **Graceful Fallbacks**: Continues operation when optional tools are unavailable
+- **Cross-Platform**: Works on Linux, macOS, and other Unix-like systems
 
 ## Supported Architectures
 
@@ -71,6 +76,41 @@ The system supports the following architectures based on Q4 2024 market data:
       "mountpoint": "/"
     }
   ],
+  "network_interfaces": [
+    {
+      "interface": "eth0",
+      "ipv4_addresses": ["10.1.0.215/20"],
+      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
+      "mac_address": "60:45:bd:06:42:7f",
+      "mtu": "1500",
+      "state": "up"
+    }
+  ],
+  "interface_statistics": [
+    {
+      "interface": "eth0",
+      "rx_bytes": "77457645",
+      "rx_packets": "58679",
+      "tx_bytes": "4771183",
+      "tx_packets": "11917"
+    }
+  ],
+  "ipv4_routes": [
+    {
+      "destination": "default",
+      "gateway": "10.1.0.1",
+      "interface": "eth0",
+      "metric": "100"
+    }
+  ],
+  "arp_table": [
+    {
+      "ip_address": "10.1.0.1",
+      "mac_address": "12:34:56:78:9a:bc",
+      "interface": "eth0",
+      "state": "REACHABLE"
+    }
+  ],
   "uptime_seconds": "3647",
   "uptime_formatted": "1h 0m 47s",
   "boot_time": "1754453845",
@@ -86,6 +126,9 @@ The system supports the following architectures based on Q4 2024 market data:
 plugins/
 ├── 10_os_info.sh      # OS and distribution information
 ├── 20_hardware_info.sh # CPU, memory, and disk information
+├── 30_ip_info.sh      # Network interface details (IPv4/IPv6)
+├── 31_network_stats.sh # Network statistics, routing, multicast
+├── 32_lldp_neighbors.sh # LLDP neighbors, ARP table, bridge info
 └── 50_uptime_info.sh  # System uptime and load information
 ```
 
@@ -174,6 +217,64 @@ Collects hardware information:
 - RISC-V/MIPS/SPARC: Architecture-specific CPU model parsing
 - Cross-platform memory and disk detection
 
+### 30_ip_info.sh
+
+Collects detailed network interface information:
+
+- **network_interfaces**: Array of network interface details including:
+  - **interface**: Interface name (e.g., "eth0", "wlan0")
+  - **ipv4_addresses**: Array of IPv4 addresses with CIDR notation
+  - **ipv6_addresses**: Array of IPv6 addresses with prefix length
+  - **mac_address**: Hardware MAC address
+  - **mtu**: Maximum Transmission Unit size
+  - **state**: Interface state (up/down/unknown)
+- **architecture**: Target architecture
+
+**Architecture-specific features:**
+- Cross-platform interface detection using `ip`, `ifconfig`, or `/proc/net/dev`
+- ARM-specific handling for embedded systems and Raspberry Pi
+- PowerPC and IBM Z network interface specifics
+- Graceful fallback for systems without modern network tools
+
+### 31_network_stats.sh
+
+Collects comprehensive network statistics and routing information:
+
+- **interface_statistics**: Per-interface traffic statistics including:
+  - **rx_bytes/rx_packets/rx_errors/rx_dropped**: Receive statistics
+  - **tx_bytes/tx_packets/tx_errors/tx_dropped**: Transmit statistics
+- **ipv4_routes**: IPv4 routing table entries with destination, gateway, interface, metric
+- **ipv6_routes**: IPv6 routing table entries
+- **multicast_groups**: Active multicast group memberships
+- **listening_ports**: Network services and listening ports
+- **architecture**: Target architecture
+
+**Architecture-specific features:**
+- Multi-source routing information (`ip route`, `route`, `/proc/net/route`)
+- Cross-platform network statistics from `/proc/net/dev`
+- Multicast group detection for IPv4 and IPv6
+- Network service discovery using `ss` or `netstat`
+
+### 32_lldp_neighbors.sh
+
+Collects network discovery and bridge information:
+
+- **lldp_neighbors**: LLDP (Link Layer Discovery Protocol) neighbor devices
+- **arp_table**: ARP table entries with IP-to-MAC mappings
+- **bridge_info**: Network bridge configurations including:
+  - Bridge names and IDs
+  - STP (Spanning Tree Protocol) status
+  - Connected interfaces
+  - Docker bridge detection
+- **network_namespaces**: Available network namespaces
+- **architecture**: Target architecture
+
+**Architecture-specific features:**
+- LLDP/CDP neighbor discovery using `lldpctl` or `lldptool`
+- ARP table parsing from `ip neigh`, `arp`, or `/proc/net/arp`
+- Bridge detection using `brctl`, `bridge`, or Docker network inspection
+- Network namespace enumeration for containerized environments
+
 ### 50_uptime_info.sh
 
 Collects system uptime and load information:
@@ -197,8 +298,20 @@ Collects system uptime and load information:
 
 - Bash shell (version 4.0+)
 - Standard Unix utilities (`uname`, `grep`, `awk`, etc.)
-- Python 3 (for JSON validation in examples)
+- Python 3 (for JSON validation in examples and enhanced validation)
 - Bats testing framework (for running tests)
+
+#### Optional Dependencies
+
+These tools enhance functionality but have fallbacks if unavailable:
+
+- `bc` - For precise CPU frequency and memory calculations (falls back to basic arithmetic)
+- `ip` (iproute2) - For modern network interface discovery (falls back to `ifconfig` or `/proc`)
+- `ss` - For network port discovery (falls back to `netstat`)
+- `lldpctl` - For LLDP neighbor discovery (network discovery still works without it)
+- `docker` - For Docker bridge detection (other bridge detection methods used)
+
+The system will warn about missing optional dependencies but continue to function with fallback methods.
 
 ### Setup
 
@@ -227,18 +340,16 @@ The project includes comprehensive test coverage using the Bats testing framewor
 The testing framework covers all major components with dedicated test suites:
 
 ```
-test-collect_info-sh/
-└── collect_info_test.bats     # Main script tests
-
-test-10_os_info-sh/
-└── os_info_test.bats         # OS plugin tests
-
-test-20_hardware_info-sh/
-└── hardware_info_test.bats   # Hardware plugin tests
-
 test/
+├── integration/
+│   └── collect_info_test.bats     # Main script integration tests
 └── plugins/
-    └── 50_uptime_info.bats   # Uptime plugin tests
+    ├── 10_os_info_test.bats       # OS plugin tests
+    ├── 20_hardware_info_test.bats # Hardware plugin tests
+    ├── 30_ip_info_test.bats       # Network interface plugin tests
+    ├── 31_network_stats_test.bats # Network statistics plugin tests
+    ├── 32_lldp_neighbors_test.bats # LLDP/ARP plugin tests
+    └── 50_uptime_info_test.bats   # Uptime plugin tests
 ```
 
 ### Installing and Running the Bats Testing Framework
@@ -288,33 +399,30 @@ sudo ./install.sh /usr/local
 Execute individual test suites:
 ```bash
 # Test main collector script
-bats test-collect_info-sh/collect_info_test.bats
+bats test/integration/collect_info_test.bats
 
-# Test OS information plugin
-bats test-10_os_info-sh/os_info_test.bats
-
-# Test hardware information plugin
-bats test-20_hardware_info-sh/hardware_info_test.bats
-
-# Test uptime information plugin
-bats test/plugins/50_uptime_info.bats
+# Test individual plugins
+bats test/plugins/10_os_info_test.bats
+bats test/plugins/20_hardware_info_test.bats
+bats test/plugins/30_ip_info_test.bats
+bats test/plugins/31_network_stats_test.bats
+bats test/plugins/32_lldp_neighbors_test.bats
+bats test/plugins/50_uptime_info_test.bats
 ```
 
 Run all tests at once:
 ```bash
 # Run all tests in sequence
-bats test-collect_info-sh/collect_info_test.bats \
-     test-10_os_info-sh/os_info_test.bats \
-     test-20_hardware_info-sh/hardware_info_test.bats \
-     test/plugins/50_uptime_info.bats
+bats test/integration/collect_info_test.bats \
+     test/plugins/*.bats
 
 # Or use find to run all .bats files
-find . -name "*.bats" -exec bats {} \;
+find test/ -name "*.bats" -exec bats {} \;
 ```
 
 ### Sample Complete JSON Output
 
-When all plugins run successfully, the system produces comprehensive JSON output including OS information, hardware details, and uptime statistics:
+When all plugins run successfully, the system produces comprehensive JSON output including OS information, hardware details, network configuration, and uptime statistics:
 
 ```json
 {
@@ -357,6 +465,91 @@ When all plugins run successfully, the system produces comprehensive JSON output
       "mountpoint": "/boot/efi"
     }
   ],
+  "network_interfaces": [
+    {
+      "interface": "eth0",
+      "ipv4_addresses": ["10.1.0.215/20"],
+      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
+      "mac_address": "60:45:bd:06:42:7f",
+      "mtu": "1500",
+      "state": "up"
+    },
+    {
+      "interface": "docker0",
+      "ipv4_addresses": ["172.17.0.1/16"],
+      "ipv6_addresses": [],
+      "mac_address": "02:42:a1:b2:c3:d4",
+      "mtu": "1500",
+      "state": "down"
+    }
+  ],
+  "interface_statistics": [
+    {
+      "interface": "eth0",
+      "rx_bytes": "77457645",
+      "rx_packets": "58679",
+      "rx_errors": "0",
+      "rx_dropped": "0",
+      "tx_bytes": "4771183",
+      "tx_packets": "11917",
+      "tx_errors": "0",
+      "tx_dropped": "0"
+    }
+  ],
+  "ipv4_routes": [
+    {
+      "destination": "default",
+      "gateway": "10.1.0.1",
+      "interface": "eth0",
+      "metric": "100"
+    },
+    {
+      "destination": "10.1.0.0/20",
+      "gateway": "direct",
+      "interface": "eth0",
+      "metric": "100"
+    }
+  ],
+  "ipv6_routes": [
+    {
+      "destination": "fe80::/64",
+      "gateway": "direct",
+      "interface": "eth0",
+      "metric": "256"
+    }
+  ],
+  "multicast_groups": [
+    {
+      "interface": "eth0",
+      "group": "224.0.0.1",
+      "version": "ipv4"
+    }
+  ],
+  "listening_ports": [
+    {
+      "protocol": "tcp",
+      "local_address": "0.0.0.0:22",
+      "state": "LISTEN"
+    }
+  ],
+  "lldp_neighbors": [],
+  "arp_table": [
+    {
+      "ip_address": "10.1.0.1",
+      "mac_address": "12:34:56:78:9a:bc",
+      "interface": "eth0",
+      "state": "REACHABLE"
+    }
+  ],
+  "bridge_info": [
+    {
+      "bridge_name": "docker0",
+      "bridge_id": "8000.0242a1b2c3d4",
+      "stp_enabled": "no",
+      "interfaces": ""
+    }
+  ],
+  "network_namespaces": [],
   "uptime_seconds": "112",
   "uptime_formatted": "1m 52s",
   "boot_time": "1754453845",
@@ -383,6 +576,18 @@ The comprehensive test suite validates:
   - CPU model, cores, and frequency detection
   - Memory and disk information gathering
   - Cross-architecture hardware detection
+- **Network Interface Plugin**: 
+  - Network interface discovery and IPv4/IPv6 address detection
+  - MAC address and MTU information
+  - Cross-platform interface detection
+- **Network Statistics Plugin**: 
+  - Interface traffic statistics and routing table parsing
+  - Multicast group detection and listening port discovery
+  - IPv4/IPv6 route management
+- **LLDP/ARP Plugin**: 
+  - Network neighbor discovery and ARP table parsing
+  - Bridge information and network namespace detection
+  - Docker network integration
 - **Uptime Information Plugin**: 
   - System uptime calculation and formatting
   - Boot time detection
@@ -454,6 +659,42 @@ EOF
 4. **Performance**: Minimize resource usage and execution time
 5. **Documentation**: Comment complex logic and architecture-specific code
 6. **Testing**: Create corresponding test files in the appropriate test directory
+
+## Configuration
+
+### Environment Variables
+
+The plugins support configuration through environment variables to control resource limits and behavior:
+
+#### Network Interface Plugin (30_ip_info.sh)
+- `MAX_INTERFACES=20` - Maximum number of network interfaces to process
+- `MAX_ADDRESSES_PER_INTERFACE=10` - Maximum IPv4/IPv6 addresses per interface
+
+#### Network Statistics Plugin (31_network_stats.sh)  
+- `MAX_INTERFACES=20` - Maximum number of interfaces for statistics
+- `MAX_ROUTES=50` - Maximum number of routing table entries (IPv4/IPv6)
+- `MAX_MCAST_GROUPS=30` - Maximum multicast group entries
+- `MAX_LISTENING_PORTS=50` - Maximum listening ports to report
+
+#### LLDP/ARP Plugin (32_lldp_neighbors.sh)
+- `MAX_NEIGHBORS=20` - Maximum LLDP/CDP neighbors to discover  
+- `MAX_ARP_ENTRIES=50` - Maximum ARP table entries
+- `MAX_BRIDGES=20` - Maximum bridge configurations
+- `MAX_NETNS=20` - Maximum network namespaces
+- `MAX_DOCKER_NETWORKS=10` - Maximum Docker bridge networks
+
+### Usage Examples
+
+```bash
+# Limit network discovery for performance
+MAX_INTERFACES=5 MAX_ROUTES=20 ./collect_info.sh
+
+# Comprehensive discovery for detailed analysis
+MAX_INTERFACES=50 MAX_ROUTES=100 MAX_ARP_ENTRIES=200 ./collect_info.sh
+
+# Container-focused configuration
+MAX_DOCKER_NETWORKS=20 MAX_NETNS=50 ./collect_info.sh -o container-info.json
+```
 
 ## Advanced Usage
 

@@ -6,6 +6,10 @@ set -e
 
 ARCH="$1"
 
+# Configuration limits (can be overridden by environment variables)
+MAX_INTERFACES=${MAX_INTERFACES:-20}
+MAX_ADDRESSES_PER_INTERFACE=${MAX_ADDRESSES_PER_INTERFACE:-10}
+
 get_ip_info() {
     local interfaces_data="["
     local first_interface=true
@@ -36,7 +40,7 @@ get_ip_info() {
                     first_ipv4=false
                     ipv4_list+="\"$(escape_json "$line")\""
                 fi
-            done < <(ip -4 addr show "$interface" 2>/dev/null | grep "inet " | awk '{print $2}' | head -10)
+            done < <(ip -4 addr show "$interface" 2>/dev/null | grep "inet " | awk '{print $2}' | head -${MAX_ADDRESSES_PER_INTERFACE})
             
             if [[ "$first_ipv4" == "false" ]]; then
                 ipv4_addresses="[$ipv4_list]"
@@ -53,7 +57,7 @@ get_ip_info() {
                     first_ipv6=false
                     ipv6_list+="\"$(escape_json "$line")\""
                 fi
-            done < <(ip -6 addr show "$interface" 2>/dev/null | grep "inet6 " | awk '{print $2}' | head -10)
+            done < <(ip -6 addr show "$interface" 2>/dev/null | grep "inet6 " | awk '{print $2}' | head -${MAX_ADDRESSES_PER_INTERFACE})
             
             if [[ "$first_ipv6" == "false" ]]; then
                 ipv6_addresses="[$ipv6_list]"
@@ -156,7 +160,7 @@ EOF
                 first_interface=false
                 interfaces_data+=$(get_interface_info "$interface")
             fi
-        done < <(ip link show 2>/dev/null | grep "^[0-9]" | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -20)
+        done < <(ip link show 2>/dev/null | grep "^[0-9]" | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -${MAX_INTERFACES})
         
         # Also include loopback
         if [[ "$first_interface" == "false" ]]; then
@@ -175,7 +179,7 @@ EOF
                 first_interface=false
                 interfaces_data+=$(get_interface_info "$interface")
             fi
-        done < <(tail -n +3 /proc/net/dev | head -20)
+        done < <(tail -n +3 /proc/net/dev | head -${MAX_INTERFACES})
     elif command -v ifconfig >/dev/null 2>&1; then
         # Fallback to ifconfig -a
         while IFS= read -r interface; do
@@ -186,7 +190,7 @@ EOF
                 first_interface=false
                 interfaces_data+=$(get_interface_info "$interface")
             fi
-        done < <(ifconfig -a 2>/dev/null | grep "^[a-zA-Z]" | awk '{print $1}' | sed 's/:$//' | head -20)
+        done < <(ifconfig -a 2>/dev/null | grep "^[a-zA-Z]" | awk '{print $1}' | sed 's/:$//' | head -${MAX_INTERFACES})
     fi
 
     # If no interfaces found, add unknown entry

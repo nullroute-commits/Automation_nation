@@ -69,7 +69,12 @@ get_hardware_info() {
         if [[ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq ]]; then
             local freq_khz=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null || echo "0")
             if [[ "$freq_khz" != "0" ]]; then
-                cpu_freq=$(echo "scale=2; $freq_khz / 1000" | bc 2>/dev/null || echo "unknown")
+                if command -v bc >/dev/null 2>&1; then
+                    cpu_freq=$(echo "scale=2; $freq_khz / 1000" | bc 2>/dev/null || echo "unknown")
+                else
+                    # Fallback arithmetic without bc
+                    cpu_freq=$((freq_khz / 1000))
+                fi
                 cpu_freq="${cpu_freq} MHz"
             else
                 cpu_freq="unknown"
@@ -101,11 +106,19 @@ get_hardware_info() {
         
         # Convert to MB if we have the values
         if [[ "$memory_total" != "unknown" ]]; then
-            memory_total=$(echo "scale=0; $memory_total / 1024" | bc 2>/dev/null || echo "$memory_total")
+            if command -v bc >/dev/null 2>&1; then
+                memory_total=$(echo "scale=0; $memory_total / 1024" | bc 2>/dev/null || echo "$memory_total")
+            else
+                memory_total=$((memory_total / 1024))
+            fi
             memory_total="${memory_total} MB"
         fi
         if [[ "$memory_available" != "unknown" ]]; then
-            memory_available=$(echo "scale=0; $memory_available / 1024" | bc 2>/dev/null || echo "$memory_available")
+            if command -v bc >/dev/null 2>&1; then
+                memory_available=$(echo "scale=0; $memory_available / 1024" | bc 2>/dev/null || echo "$memory_available")
+            else
+                memory_available=$((memory_available / 1024))
+            fi
             memory_available="${memory_available} MB"
         fi
     elif command -v vm_stat >/dev/null 2>&1; then
@@ -113,7 +126,11 @@ get_hardware_info() {
         local page_size=$(vm_stat | grep "page size" | awk '{print $8}' 2>/dev/null || echo "4096")
         local total_pages=$(vm_stat | grep "Pages free" | awk '{print $3}' | sed 's/\.//' 2>/dev/null || echo "0")
         if [[ "$total_pages" != "0" ]]; then
-            memory_total=$(echo "scale=0; $total_pages * $page_size / 1024 / 1024" | bc 2>/dev/null || echo "unknown")
+            if command -v bc >/dev/null 2>&1; then
+                memory_total=$(echo "scale=0; $total_pages * $page_size / 1024 / 1024" | bc 2>/dev/null || echo "unknown")
+            else
+                memory_total=$((total_pages * page_size / 1024 / 1024))
+            fi
             memory_total="${memory_total} MB"
         else
             memory_total="unknown"
@@ -195,10 +212,22 @@ if [[ -z "$ARCH" ]]; then
 fi
 
 # Install bc if not available (for calculations)
-if ! command -v bc >/dev/null 2>&1; then
-    # Use basic arithmetic if bc is not available
-    :
-fi
+check_dependencies() {
+    local missing_deps=""
+    
+    # Check for bc (used for calculations)
+    if ! command -v bc >/dev/null 2>&1; then
+        missing_deps="${missing_deps}bc "
+    fi
+    
+    # Warn about missing dependencies but continue
+    if [[ -n "$missing_deps" ]]; then
+        echo "Warning: Missing optional dependencies: $missing_deps" >&2
+        echo "Some calculations may fall back to basic arithmetic" >&2
+    fi
+}
+
+check_dependencies
 
 # Execute main function
 get_hardware_info

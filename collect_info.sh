@@ -32,6 +32,28 @@ usage() {
   exit 1
 }
 
+# Enhanced JSON validation function
+validate_json() {
+    local json_string="$1"
+    local plugin_name="$2"
+    
+    # Basic structure check
+    if [[ ! "$json_string" =~ ^\{.*\}$ ]]; then
+        echo "Warning: Plugin $plugin_name did not return valid JSON structure. Skipping." >&2
+        return 1
+    fi
+    
+    # Try to validate with python if available
+    if command -v python3 >/dev/null 2>&1; then
+        if ! echo "$json_string" | python3 -m json.tool >/dev/null 2>&1; then
+            echo "Warning: Plugin $plugin_name returned malformed JSON. Skipping." >&2
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
 while getopts "o:h" opt; do
   case "$opt" in
     o) OUTPUT_FILE="$OPTARG" ;; 
@@ -62,10 +84,12 @@ JSON="{\"detected_architecture\": \"$ARCH\","
 FIRST=1
 for plugin in "${PLUGINS[@]}"; do
   OUTPUT="$($plugin "$ARCH")"
-  if [[ ! "$OUTPUT" =~ ^\{.*\}$ ]]; then
-    echo "Warning: Plugin $plugin did not return valid JSON. Skipping." >&2
+  plugin_basename=$(basename "$plugin")
+  
+  if ! validate_json "$OUTPUT" "$plugin_basename"; then
     continue
   fi
+  
   FRAGMENT="${OUTPUT:1:-1}"
   if [[ $FIRST -eq 1 ]]; then
     JSON+="$FRAGMENT"
