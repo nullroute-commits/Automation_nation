@@ -132,7 +132,7 @@ JSON="{\"detected_architecture\": \"$ARCH\","
 FIRST=1
 for plugin in "${PLUGINS[@]}"; do
   OUTPUT="$($plugin "$ARCH")"
-  FRAGMENT="${OUTPUT:1:-1}"  # Strip outer braces
+  FRAGMENT="$(echo "$OUTPUT" | jq -c 'to_entries | map("\(.key):\(.value|tojson)") | join(",")')"
   if [[ $FIRST -eq 1 ]]; then
     JSON+="$FRAGMENT"
     FIRST=0
