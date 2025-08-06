@@ -6,6 +6,13 @@ set -e
 
 ARCH="$1"
 
+# Configuration limits (can be overridden by environment variables)
+MAX_NEIGHBORS=${MAX_NEIGHBORS:-20}
+MAX_ARP_ENTRIES=${MAX_ARP_ENTRIES:-50}
+MAX_BRIDGES=${MAX_BRIDGES:-20}
+MAX_NETNS=${MAX_NETNS:-20}
+MAX_DOCKER_NETWORKS=${MAX_DOCKER_NETWORKS:-10}
+
 get_lldp_neighbors() {
     # Function to escape JSON strings
     escape_json() {
@@ -34,7 +41,7 @@ get_lldp_neighbors() {
                     lldp_neighbors+="{\"local_interface\":\"$(escape_json "$interface")\",\"chassis_id\":\"$(escape_json "$chassis_id")\",\"port_id\":\"$(escape_json "$port_id")\",\"system_name\":\"$(escape_json "$system_name")\",\"protocol\":\"lldp\"}"
                 fi
             fi
-        done < <(lldpctl 2>/dev/null | grep -A 100 "LLDP neighbors" | grep "^[[:space:]]*[a-zA-Z]" | head -20)
+        done < <(lldpctl 2>/dev/null | grep -A 100 "LLDP neighbors" | grep "^[[:space:]]*[a-zA-Z]" | head -${MAX_NEIGHBORS})
     elif command -v lldptool >/dev/null 2>&1; then
         # Alternative LLDP tool
         while IFS= read -r interface; do
@@ -53,7 +60,7 @@ get_lldp_neighbors() {
                     lldp_neighbors+="{\"local_interface\":\"$(escape_json "$interface")\",\"chassis_id\":\"$(escape_json "$chassis_id")\",\"port_id\":\"$(escape_json "$port_id")\",\"system_name\":\"$(escape_json "$system_name")\",\"protocol\":\"lldp\"}"
                 fi
             fi
-        done < <(ip link show 2>/dev/null | grep "^[0-9]" | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -10)
+        done < <(ip link show 2>/dev/null | grep "^[0-9]" | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -${MAX_NEIGHBORS})
     fi
 
     # Check for CDP (Cisco Discovery Protocol) if available
@@ -73,7 +80,7 @@ get_lldp_neighbors() {
                     lldp_neighbors+="{\"local_interface\":\"$(escape_json "$interface")\",\"chassis_id\":\"$(escape_json "$device_id")\",\"port_id\":\"unknown\",\"system_name\":\"$(escape_json "$platform")\",\"protocol\":\"cdp\"}"
                 fi
             fi
-        done < <(cdpctl 2>/dev/null | head -20)
+        done < <(cdpctl 2>/dev/null | head -${MAX_NEIGHBORS})
     fi
 
     # If no LLDP/CDP neighbors found, add empty array
@@ -104,7 +111,7 @@ get_lldp_neighbors() {
                     arp_table+="{\"ip_address\":\"$(escape_json "$ip_addr")\",\"mac_address\":\"$(escape_json "$mac_addr")\",\"interface\":\"$(escape_json "$interface")\",\"state\":\"$(escape_json "$state")\"}"
                 fi
             fi
-        done < <(ip neigh show 2>/dev/null | head -50)
+        done < <(ip neigh show 2>/dev/null | head -${MAX_ARP_ENTRIES})
     elif command -v arp >/dev/null 2>&1; then
         while IFS= read -r line; do
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^Address ]]; then
@@ -121,7 +128,7 @@ get_lldp_neighbors() {
                     arp_table+="{\"ip_address\":\"$(escape_json "$ip_addr")\",\"mac_address\":\"$(escape_json "$mac_addr")\",\"interface\":\"$(escape_json "$interface")\",\"state\":\"unknown\"}"
                 fi
             fi
-        done < <(arp -a 2>/dev/null | head -50)
+        done < <(arp -a 2>/dev/null | head -${MAX_ARP_ENTRIES})
     elif [[ -f /proc/net/arp ]]; then
         while IFS= read -r line; do
             if [[ ! "$line" =~ ^IP ]]; then
@@ -138,7 +145,7 @@ get_lldp_neighbors() {
                     arp_table+="{\"ip_address\":\"$(escape_json "$ip_addr")\",\"mac_address\":\"$(escape_json "$mac_addr")\",\"interface\":\"$(escape_json "$interface")\",\"state\":\"unknown\"}"
                 fi
             fi
-        done < <(cat /proc/net/arp | head -50)
+        done < <(cat /proc/net/arp | head -${MAX_ARP_ENTRIES})
     fi
 
     # If no ARP entries found, add empty array
@@ -169,7 +176,7 @@ get_lldp_neighbors() {
                     bridge_info+="{\"bridge_name\":\"$(escape_json "$bridge_name")\",\"bridge_id\":\"$(escape_json "$bridge_id")\",\"stp_enabled\":\"$(escape_json "$stp")\",\"interfaces\":\"$(escape_json "$interfaces")\"}"
                 fi
             fi
-        done < <(brctl show 2>/dev/null | head -20)
+        done < <(brctl show 2>/dev/null | head -${MAX_BRIDGES})
     elif command -v bridge >/dev/null 2>&1; then
         # Use bridge command from iproute2
         while IFS= read -r line; do
@@ -189,7 +196,7 @@ get_lldp_neighbors() {
                     bridge_info+="{\"bridge_name\":\"$(escape_json "$bridge_name")\",\"bridge_id\":\"$(escape_json "$bridge_id")\",\"stp_enabled\":\"unknown\",\"interfaces\":\"unknown\"}"
                 fi
             fi
-        done < <(bridge link show 2>/dev/null | head -20)
+        done < <(bridge link show 2>/dev/null | head -${MAX_BRIDGES})
     fi
 
     # Check for Docker bridges
@@ -209,7 +216,7 @@ get_lldp_neighbors() {
                     bridge_info+="{\"bridge_name\":\"$(escape_json "$network_name")\",\"bridge_id\":\"docker\",\"stp_enabled\":\"unknown\",\"interfaces\":\"docker_managed\"}"
                 fi
             fi
-        done < <(docker network ls --filter driver=bridge 2>/dev/null | head -10)
+        done < <(docker network ls --filter driver=bridge 2>/dev/null | head -${MAX_DOCKER_NETWORKS})
     fi
 
     # If no bridges found, add empty array
@@ -233,7 +240,7 @@ get_lldp_neighbors() {
 
                 network_namespaces+="\"$(escape_json "$line")\""
             fi
-        done < <(ip netns list 2>/dev/null | awk '{print $1}' | head -20)
+        done < <(ip netns list 2>/dev/null | awk '{print $1}' | head -${MAX_NETNS})
     fi
 
     # If no network namespaces found, add empty array

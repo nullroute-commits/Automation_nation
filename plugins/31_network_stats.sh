@@ -6,6 +6,12 @@ set -e
 
 ARCH="$1"
 
+# Configuration limits (can be overridden by environment variables)
+MAX_INTERFACES=${MAX_INTERFACES:-20}
+MAX_ROUTES=${MAX_ROUTES:-50}
+MAX_MCAST_GROUPS=${MAX_MCAST_GROUPS:-30}
+MAX_LISTENING_PORTS=${MAX_LISTENING_PORTS:-50}
+
 get_network_stats() {
     # Function to escape JSON strings
     escape_json() {
@@ -39,7 +45,7 @@ get_network_stats() {
 
                 interface_stats+="{\"interface\":\"$(escape_json "$interface")\",\"rx_bytes\":\"$rx_bytes\",\"rx_packets\":\"$rx_packets\",\"rx_errors\":\"$rx_errors\",\"rx_dropped\":\"$rx_dropped\",\"tx_bytes\":\"$tx_bytes\",\"tx_packets\":\"$tx_packets\",\"tx_errors\":\"$tx_errors\",\"tx_dropped\":\"$tx_dropped\"}"
             fi
-        done < <(tail -n +3 /proc/net/dev | head -20)
+        done < <(tail -n +3 /proc/net/dev | head -${MAX_INTERFACES})
     fi
 
     # If no interface stats found, add unknown entry
@@ -69,7 +75,7 @@ get_network_stats() {
 
                 ipv4_routes+="{\"destination\":\"$(escape_json "$destination")\",\"gateway\":\"$(escape_json "$gateway")\",\"interface\":\"$(escape_json "$interface")\",\"metric\":\"$(escape_json "$metric")\"}"
             fi
-        done < <(ip -4 route show 2>/dev/null | head -50)
+        done < <(ip -4 route show 2>/dev/null | head -${MAX_ROUTES})
     elif command -v route >/dev/null 2>&1; then
         # Fallback to route command
         while IFS= read -r line; do
@@ -86,7 +92,7 @@ get_network_stats() {
 
                 ipv4_routes+="{\"destination\":\"$(escape_json "$destination")\",\"gateway\":\"$(escape_json "$gateway")\",\"interface\":\"$(escape_json "$interface")\",\"metric\":\"$(escape_json "$metric")\"}"
             fi
-        done < <(route -n 2>/dev/null | head -50)
+        done < <(route -n 2>/dev/null | head -${MAX_ROUTES})
     elif [[ -f /proc/net/route ]]; then
         # Fallback to /proc/net/route
         while IFS= read -r line; do
@@ -103,7 +109,7 @@ get_network_stats() {
 
                 ipv4_routes+="{\"destination\":\"$(escape_json "$destination")\",\"gateway\":\"$(escape_json "$gateway")\",\"interface\":\"$(escape_json "$interface")\",\"metric\":\"$(escape_json "$metric")\"}"
             fi
-        done < <(head -20 /proc/net/route)
+        done < <(head -${MAX_INTERFACES} /proc/net/route)
     fi
 
     # If no IPv4 routes found, add unknown entry
@@ -132,7 +138,7 @@ get_network_stats() {
 
                 ipv6_routes+="{\"destination\":\"$(escape_json "$destination")\",\"gateway\":\"$(escape_json "$gateway")\",\"interface\":\"$(escape_json "$interface")\",\"metric\":\"$(escape_json "$metric")\"}"
             fi
-        done < <(ip -6 route show 2>/dev/null | head -30)
+        done < <(ip -6 route show 2>/dev/null | head -${MAX_ROUTES})
     elif [[ -f /proc/net/ipv6_route ]]; then
         # Fallback to /proc/net/ipv6_route
         while IFS= read -r line; do
@@ -149,7 +155,7 @@ get_network_stats() {
 
                 ipv6_routes+="{\"destination\":\"$(escape_json "$destination")\",\"gateway\":\"$(escape_json "$gateway")\",\"interface\":\"$(escape_json "$interface_idx")\",\"metric\":\"$(escape_json "$metric")\"}"
             fi
-        done < <(head -20 /proc/net/ipv6_route)
+        done < <(head -${MAX_INTERFACES} /proc/net/ipv6_route)
     fi
 
     # If no IPv6 routes found, add empty array
@@ -178,7 +184,7 @@ get_network_stats() {
                     multicast_groups+="{\"interface\":\"$(escape_json "$interface")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv4\"}"
                 fi
             fi
-        done < <(tail -n +2 /proc/net/igmp | head -30)
+        done < <(tail -n +2 /proc/net/igmp | head -${MAX_MCAST_GROUPS})
     fi
 
     if [[ -f /proc/net/igmp6 ]]; then
@@ -196,7 +202,7 @@ get_network_stats() {
                     multicast_groups+="{\"interface\":\"$(escape_json "$interface")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv6\"}"
                 fi
             fi
-        done < <(tail -n +2 /proc/net/igmp6 | head -30)
+        done < <(tail -n +2 /proc/net/igmp6 | head -${MAX_MCAST_GROUPS})
     fi
 
     # If no multicast groups found, add empty array
@@ -226,7 +232,7 @@ get_network_stats() {
                     listening_ports+="{\"protocol\":\"$(escape_json "$protocol")\",\"local_address\":\"$(escape_json "$local_addr")\",\"state\":\"$(escape_json "$state")\"}"
                 fi
             fi
-        done < <(ss -tuln 2>/dev/null | head -50)
+        done < <(ss -tuln 2>/dev/null | head -${MAX_LISTENING_PORTS})
     elif command -v netstat >/dev/null 2>&1; then
         while IFS= read -r line; do
             if [[ -n "$line" ]] && [[ ! "$line" =~ ^Active ]] && [[ ! "$line" =~ ^Proto ]]; then
@@ -243,7 +249,7 @@ get_network_stats() {
                     listening_ports+="{\"protocol\":\"$(escape_json "$protocol")\",\"local_address\":\"$(escape_json "$local_addr")\",\"state\":\"$(escape_json "$state")\"}"
                 fi
             fi
-        done < <(netstat -tuln 2>/dev/null | head -50)
+        done < <(netstat -tuln 2>/dev/null | head -${MAX_LISTENING_PORTS})
     fi
 
     # If no listening ports found, add empty array

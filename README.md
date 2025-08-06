@@ -9,10 +9,15 @@ This repository provides a flexible system information collection framework that
 ## Features
 
 - **Plugin-based Architecture**: Extensible design for easy addition of new data collectors
-- **Multi-Architecture Support**: Supports 10 major CPU architectures
+- **Multi-Architecture Support**: Supports 10 major CPU architectures  
 - **JSON Output**: Structured, machine-readable output format
 - **Automatic Plugin Discovery**: Dynamically finds and executes plugins
 - **Comprehensive Testing**: Full test coverage with Bats framework
+- **Network Discovery**: Advanced network interface, routing, and neighbor discovery
+- **Container Integration**: Docker bridge and network namespace detection
+- **Configurable Limits**: Environment variable configuration for performance tuning
+- **Graceful Fallbacks**: Continues operation when optional tools are unavailable
+- **Cross-Platform**: Works on Linux, macOS, and other Unix-like systems
 
 ## Supported Architectures
 
@@ -293,8 +298,20 @@ Collects system uptime and load information:
 
 - Bash shell (version 4.0+)
 - Standard Unix utilities (`uname`, `grep`, `awk`, etc.)
-- Python 3 (for JSON validation in examples)
+- Python 3 (for JSON validation in examples and enhanced validation)
 - Bats testing framework (for running tests)
+
+#### Optional Dependencies
+
+These tools enhance functionality but have fallbacks if unavailable:
+
+- `bc` - For precise CPU frequency and memory calculations (falls back to basic arithmetic)
+- `ip` (iproute2) - For modern network interface discovery (falls back to `ifconfig` or `/proc`)
+- `ss` - For network port discovery (falls back to `netstat`)
+- `lldpctl` - For LLDP neighbor discovery (network discovery still works without it)
+- `docker` - For Docker bridge detection (other bridge detection methods used)
+
+The system will warn about missing optional dependencies but continue to function with fallback methods.
 
 ### Setup
 
@@ -642,6 +659,42 @@ EOF
 4. **Performance**: Minimize resource usage and execution time
 5. **Documentation**: Comment complex logic and architecture-specific code
 6. **Testing**: Create corresponding test files in the appropriate test directory
+
+## Configuration
+
+### Environment Variables
+
+The plugins support configuration through environment variables to control resource limits and behavior:
+
+#### Network Interface Plugin (30_ip_info.sh)
+- `MAX_INTERFACES=20` - Maximum number of network interfaces to process
+- `MAX_ADDRESSES_PER_INTERFACE=10` - Maximum IPv4/IPv6 addresses per interface
+
+#### Network Statistics Plugin (31_network_stats.sh)  
+- `MAX_INTERFACES=20` - Maximum number of interfaces for statistics
+- `MAX_ROUTES=50` - Maximum number of routing table entries (IPv4/IPv6)
+- `MAX_MCAST_GROUPS=30` - Maximum multicast group entries
+- `MAX_LISTENING_PORTS=50` - Maximum listening ports to report
+
+#### LLDP/ARP Plugin (32_lldp_neighbors.sh)
+- `MAX_NEIGHBORS=20` - Maximum LLDP/CDP neighbors to discover  
+- `MAX_ARP_ENTRIES=50` - Maximum ARP table entries
+- `MAX_BRIDGES=20` - Maximum bridge configurations
+- `MAX_NETNS=20` - Maximum network namespaces
+- `MAX_DOCKER_NETWORKS=10` - Maximum Docker bridge networks
+
+### Usage Examples
+
+```bash
+# Limit network discovery for performance
+MAX_INTERFACES=5 MAX_ROUTES=20 ./collect_info.sh
+
+# Comprehensive discovery for detailed analysis
+MAX_INTERFACES=50 MAX_ROUTES=100 MAX_ARP_ENTRIES=200 ./collect_info.sh
+
+# Container-focused configuration
+MAX_DOCKER_NETWORKS=20 MAX_NETNS=50 ./collect_info.sh -o container-info.json
+```
 
 ## Advanced Usage
 
