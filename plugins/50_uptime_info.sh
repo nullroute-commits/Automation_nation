@@ -7,7 +7,12 @@ if [ -z "$ARCH" ]; then
   echo "Usage: $0 <arch>" >&2
   exit 1
 fi
-uptime=$(awk '{print int($1)}' /proc/uptime)
+if [ -r /proc/uptime ] && [ -f /proc/uptime ]; then
+  uptime=$(awk '{print int($1)}' /proc/uptime)
+else
+  uptime="unknown"
+  echo "Warning: /proc/uptime is not readable or does not exist." >&2
+fi
 UP_JSON=$(jq -n \
   --arg arch "$ARCH" \
   --arg uptime "$uptime" \
