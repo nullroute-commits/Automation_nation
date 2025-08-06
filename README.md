@@ -70,7 +70,11 @@ The system supports the following architectures based on Q4 2024 market data:
       "usage": "68%",
       "mountpoint": "/"
     }
-  ]
+  ],
+  "uptime_seconds": "3647",
+  "uptime_formatted": "1h 0m 47s",
+  "boot_time": "1754453845",
+  "load_average": "0.15 0.18 0.12"
 }
 ```
 
@@ -81,7 +85,8 @@ The system supports the following architectures based on Q4 2024 market data:
 ```
 plugins/
 ├── 10_os_info.sh      # OS and distribution information
-└── 20_hardware_info.sh # CPU, memory, and disk information
+├── 20_hardware_info.sh # CPU, memory, and disk information
+└── 50_uptime_info.sh  # System uptime and load information
 ```
 
 ### Plugin Requirements
@@ -169,6 +174,23 @@ Collects hardware information:
 - RISC-V/MIPS/SPARC: Architecture-specific CPU model parsing
 - Cross-platform memory and disk detection
 
+### 50_uptime_info.sh
+
+Collects system uptime and load information:
+
+- **uptime_seconds**: System uptime in seconds since boot
+- **uptime_formatted**: Human-readable uptime format (e.g., "1h 30m 45s")
+- **boot_time**: System boot time as Unix timestamp
+- **load_average**: Current system load averages (1, 5, 15 minutes)
+- **architecture**: Target architecture
+
+**Architecture-specific features:**
+- Cross-platform uptime detection using /proc/uptime or uptime command
+- Boot time calculation from /proc/stat or system utilities
+- Load average parsing from /proc/loadavg
+- Graceful fallback for systems without /proc filesystem
+- Consistent JSON structure across all supported architectures
+
 ## Installation
 
 ### Prerequisites
@@ -198,9 +220,11 @@ chmod +x collect_info.sh plugins/*.sh
 
 ## Testing
 
-The project includes comprehensive test coverage using the Bats testing framework.
+The project includes comprehensive test coverage using the Bats testing framework for all plugins and the main collection script.
 
 ### Test Structure
+
+The testing framework covers all major components with dedicated test suites:
 
 ```
 test-collect_info-sh/
@@ -211,20 +235,57 @@ test-10_os_info-sh/
 
 test-20_hardware_info-sh/
 └── hardware_info_test.bats   # Hardware plugin tests
+
+test/
+└── plugins/
+    └── 50_uptime_info.bats   # Uptime plugin tests
+```
+
+### Installing and Running the Bats Testing Framework
+
+#### Installation Options
+
+**Ubuntu/Debian:**
+```bash
+# Option 1: Package manager (recommended)
+sudo apt-get update && sudo apt-get install bats
+
+# Option 2: Install from source
+git clone https://github.com/bats-core/bats-core.git
+cd bats-core
+sudo ./install.sh /usr/local
+```
+
+**macOS:**
+```bash
+# Option 1: Homebrew (recommended)
+brew install bats-core
+
+# Option 2: MacPorts
+sudo port install bats-core
+```
+
+**CentOS/RHEL/Fedora:**
+```bash
+# Fedora
+sudo dnf install bats
+
+# CentOS/RHEL (requires EPEL)
+sudo yum install epel-release
+sudo yum install bats
+```
+
+**Manual Installation:**
+```bash
+# Clone and install manually
+git clone https://github.com/bats-core/bats-core.git
+cd bats-core
+sudo ./install.sh /usr/local
 ```
 
 ### Running Tests
 
-Install Bats testing framework:
-```bash
-# Ubuntu/Debian
-sudo apt-get install bats
-
-# macOS
-brew install bats-core
-```
-
-Run all tests:
+Execute individual test suites:
 ```bash
 # Test main collector script
 bats test-collect_info-sh/collect_info_test.bats
@@ -234,13 +295,98 @@ bats test-10_os_info-sh/os_info_test.bats
 
 # Test hardware information plugin
 bats test-20_hardware_info-sh/hardware_info_test.bats
+
+# Test uptime information plugin
+bats test/plugins/50_uptime_info.bats
+```
+
+Run all tests at once:
+```bash
+# Run all tests in sequence
+bats test-collect_info-sh/collect_info_test.bats \
+     test-10_os_info-sh/os_info_test.bats \
+     test-20_hardware_info-sh/hardware_info_test.bats \
+     test/plugins/50_uptime_info.bats
+
+# Or use find to run all .bats files
+find . -name "*.bats" -exec bats {} \;
+```
+
+### Sample Complete JSON Output
+
+When all plugins run successfully, the system produces comprehensive JSON output including OS information, hardware details, and uptime statistics:
+
+```json
+{
+  "detected_architecture": "x86_64",
+  "os_name": "Ubuntu",
+  "os_version": "24.04.2 LTS (Noble Numbat)",
+  "distribution": "ubuntu",
+  "distribution_version": "24.04",
+  "kernel_version": "6.11.0-1018-azure",
+  "architecture": "x86_64",
+  "cpu_model": "AMD EPYC 7763 64-Core Processor",
+  "cpu_cores": "1",
+  "cpu_threads": "2",
+  "cpu_frequency": "3244.330 MHz",
+  "memory_total": "7944 MB",
+  "memory_available": "6591 MB",
+  "disk_info": [
+    {
+      "filesystem": "/dev/root",
+      "size": "72G",
+      "used": "48G",
+      "available": "24G",
+      "usage": "67%",
+      "mountpoint": "/"
+    },
+    {
+      "filesystem": "/dev/sda16",
+      "size": "881M",
+      "used": "60M",
+      "available": "760M",
+      "usage": "8%",
+      "mountpoint": "/boot"
+    },
+    {
+      "filesystem": "/dev/sda15",
+      "size": "105M",
+      "used": "6.2M",
+      "available": "99M",
+      "usage": "6%",
+      "mountpoint": "/boot/efi"
+    }
+  ],
+  "uptime_seconds": "112",
+  "uptime_formatted": "1m 52s",
+  "boot_time": "1754453845",
+  "load_average": "0.36 0.20 0.08"
+}
 ```
 
 ### Test Coverage
 
-- **Architecture Detection**: Tests for all 10 supported architectures
+The comprehensive test suite validates:
+
+- **Architecture Detection**: Tests for all 10 supported architectures (x86_64, arm64, i386, ppc64le, s390x, riscv64, mips64, aarch32, sparc64, loongarch64)
 - **Plugin Discovery**: Automatic plugin detection and execution
-- **JSON Validation**: Output format validation
+- **JSON Validation**: Output format validation and structure consistency
+- **Main Script Functionality**: 
+  - Architecture detection and parameter passing
+  - Plugin merging and output generation
+  - Command-line options (-o for output file, -h for help)
+- **OS Information Plugin**: 
+  - Operating system and distribution detection
+  - Kernel version extraction
+  - Architecture-specific handling
+- **Hardware Information Plugin**: 
+  - CPU model, cores, and frequency detection
+  - Memory and disk information gathering
+  - Cross-architecture hardware detection
+- **Uptime Information Plugin**: 
+  - System uptime calculation and formatting
+  - Boot time detection
+  - Load average monitoring
 - **Error Handling**: Missing directories, invalid plugins, malformed JSON
 - **Cross-Architecture**: Consistent behavior across different architectures
 - **Edge Cases**: Systems without specific tools or information sources
