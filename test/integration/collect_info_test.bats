@@ -56,8 +56,12 @@ EOF
     cd "$TEST_DIR"
     run ./collect_info.sh
     [ "$status" -eq 0 ]
+    # With new structure, plugin data is nested inside function names
     [[ "$output" =~ "plugin1" ]]
     [[ "$output" =~ "plugin2" ]]
+    # Also check for new structure elements
+    [[ "$output" =~ "collection_metadata" ]]
+    [[ "$output" =~ "timestamp" ]]
 }
 
 @test "collect_info.sh should pass architecture as first argument to plugins" {
@@ -110,9 +114,16 @@ EOF
     cd "$TEST_DIR"
     run ./collect_info.sh
     [ "$status" -eq 0 ]
+    # With new structure, data is nested under function names
     [[ "$output" =~ "key1" ]]
     [[ "$output" =~ "key2" ]]
     [[ "$output" =~ "detected_architecture" ]]
+    # Check for new structure elements
+    [[ "$output" =~ "collection_metadata" ]]
+    [[ "$output" =~ "timestamp" ]]
+    [[ "$output" =~ "data" ]]
+    [[ "$output" =~ "collection_timestamp" ]]
+    [[ "$output" =~ "completion_timestamp" ]]
 }
 
 @test "collect_info.sh should handle missing plugins directory" {
@@ -203,4 +214,45 @@ EOF
         # Check if architecture is in the supported list
         grep -q "$arch" collect_info.sh
     done
+}
+
+# New test for enhanced JSON structure with function names and timestamps
+@test "collect_info.sh should use function names as keys and include timestamps" {
+    # Create a plugin with a clear function name
+    cat > "$TEST_PLUGIN_DIR/get_test_data.sh" << 'EOF'
+#!/bin/bash
+get_test_data() {
+    echo '{"test_field": "test_value"}'
+}
+get_test_data
+EOF
+    chmod +x "$TEST_PLUGIN_DIR/get_test_data.sh"
+    
+    # Run the script
+    cd "$TEST_DIR"
+    run ./collect_info.sh
+    [ "$status" -eq 0 ]
+    
+    # Validate new JSON structure
+    echo "$output" | python3 -m json.tool > /dev/null  # Valid JSON
+    
+    # Check for function-name based keys
+    [[ "$output" =~ "get_test_data" ]]
+    
+    # Check for nested data structure  
+    [[ "$output" =~ '"data"' ]]
+    
+    # Check for timestamps
+    [[ "$output" =~ '"collection_timestamp"' ]]
+    [[ "$output" =~ '"completion_timestamp"' ]]
+    [[ "$output" =~ '"collection_metadata"' ]]
+    
+    # Check timestamp format (ISO 8601) - simplified regex
+    [[ "$output" =~ [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z ]]
+    
+    # Check that the test data is nested under the function name - use simpler checks
+    [[ "$output" =~ "get_test_data" ]]
+    [[ "$output" =~ "test_field" ]]
+    # Ensure the structure is correct by checking the order/pattern
+    echo "$output" | grep -q '"get_test_data".*"data".*"test_field"'
 }
