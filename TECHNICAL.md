@@ -327,9 +327,17 @@ EOF
 ```
 
 #### Advanced Plugin Template
+
+> **Note:**  
+> Do **not** use `set -e` in plugin scripts. When plugins are executed via command substitution in the main orchestrator script, `set -e` can cause unexpected and hard-to-diagnose failures.  
+> Instead, use explicit error handling (e.g., check exit codes and handle errors directly) within your plugin scripts.
+
 ```bash
 #!/bin/bash
-set -e
+# NOTE: Do not use 'set -e' in plugin scripts.
+# When plugins are executed via command substitution in the main script,
+# 'set -e' can cause unexpected behavior and silent failures.
+# Instead, use explicit error handling as shown below.
 
 ARCH="$1"
 
