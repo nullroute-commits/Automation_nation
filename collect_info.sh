@@ -71,7 +71,7 @@ for plugin in "${PLUGINS[@]}"; do
     JSON+="$FRAGMENT"
     FIRST=0
   else
-    JSON+="\, $FRAGMENT"
+    JSON+=", $FRAGMENT"
   fi
 done
 
