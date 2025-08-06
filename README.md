@@ -34,6 +34,29 @@ The system supports the following architectures based on Q4 2024 market data:
 9. **sparc64** - SPARC 64-bit (Oracle systems)
 10. **loongarch64** - LoongArch 64-bit (Chinese architecture)
 
+## Repository Structure
+
+```
+Automation_nation/
+├── collect_info.sh              # Main orchestrator script
+├── plugins/                     # Data collection plugins
+│   ├── 10_os_info.sh           #   OS and distribution information
+│   ├── 20_hardware_info.sh     #   Hardware details (CPU, memory, disk)
+│   ├── 30_ip_info.sh           #   Network interface information
+│   ├── 31_network_stats.sh     #   Network statistics and routing
+│   ├── 32_lldp_neighbors.sh    #   LLDP/ARP/bridge discovery
+│   ├── 40_packages_execs.sh    #   Package and executable inventory
+│   └── 50_uptime_info.sh       #   System uptime and load
+├── test/                        # Test suite (Bats framework)
+│   ├── integration/             #   Integration tests
+│   └── plugins/                 #   Individual plugin tests
+├── README.md                    # This documentation
+├── TECHNICAL.md                 # Technical implementation guide
+├── CONFIGURATION.md             # Configuration and tuning guide
+├── ANALYSIS_SUMMARY.md          # Project analysis documentation
+└── proj-SHA512_of_folder_creation_time/  # Placeholder directories (future use)
+```
+
 ## Quick Start
 
 ### Basic Usage
