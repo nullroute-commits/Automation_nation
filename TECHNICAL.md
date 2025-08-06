@@ -385,7 +385,7 @@ output_json "$data"
 #### Monitoring System Integration
 ```bash
 # Prometheus node_exporter textfile collector
-./collect_info.sh | jq -r 'to_entries[] | "\(.key) \(.value)"' > system_info.prom
+./collect_info.sh | jq -r 'to_entries[] | select(.key|test("^[a-zA-Z_:][a-zA-Z0-9_:]*$")) | select(.value|type=="number") | "\(.key) \(.value)"' > system_info.prom
 
 # Telegraf exec input plugin
 ./collect_info.sh | telegraf --config telegraf.conf
