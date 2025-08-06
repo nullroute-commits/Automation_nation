@@ -76,6 +76,24 @@ export MAX_DOCKER_NETWORKS=10
 - **Network discovery**: Increase `MAX_NEIGHBORS` and `MAX_ARP_ENTRIES` for comprehensive network mapping
 - **Security monitoring**: Higher limits help detect all network connections and neighbors
 
+#### Package and Executable Plugin (40_packages_execs.sh)
+
+Controls package and executable information collection:
+
+```bash
+# Maximum number of packages to collect (default: 30)
+export MAX_PACKAGES=30
+
+# Maximum number of executables to collect (default: 20)
+export MAX_EXECUTABLES=20
+```
+
+**Use Cases:**
+- **System auditing**: Increase `MAX_PACKAGES` for comprehensive software inventory
+- **Security scanning**: Higher limits provide complete executable mapping
+- **Performance optimization**: Decrease limits on resource-constrained systems
+- **Container analysis**: Useful for analyzing software stack in containers
+
 ## Configuration Examples
 
 ### Performance-Optimized (Resource-Constrained Systems)
@@ -142,6 +160,19 @@ export MAX_ARP_ENTRIES=1000
 export MAX_LISTENING_PORTS=100
 
 ./collect_info.sh -o network-device-info.json
+```
+
+### Software Inventory/Security Audit
+
+```bash
+#!/bin/bash
+# Optimized for comprehensive software analysis
+export MAX_PACKAGES=200
+export MAX_EXECUTABLES=100
+export MAX_INTERFACES=10
+export MAX_ROUTES=20
+
+./collect_info.sh -o software-audit-info.json
 ```
 
 ## Integration with Configuration Management

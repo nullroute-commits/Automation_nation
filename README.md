@@ -129,6 +129,7 @@ plugins/
 ├── 30_ip_info.sh      # Network interface details (IPv4/IPv6)
 ├── 31_network_stats.sh # Network statistics, routing, multicast
 ├── 32_lldp_neighbors.sh # LLDP neighbors, ARP table, bridge info
+├── 40_packages_execs.sh # Installed packages and executables
 └── 50_uptime_info.sh  # System uptime and load information
 ```
 
@@ -274,6 +275,34 @@ Collects network discovery and bridge information:
 - ARP table parsing from `ip neigh`, `arp`, or `/proc/net/arp`
 - Bridge detection using `brctl`, `bridge`, or Docker network inspection
 - Network namespace enumeration for containerized environments
+
+### 40_packages_execs.sh
+
+Collects installed packages and system executables information:
+
+- **installed_packages**: Array of installed software packages including:
+  - **name**: Package name
+  - **version**: Package version string
+  - **package_manager**: Package manager used (dpkg, rpm, brew, etc.)
+  - **status**: Installation status
+  - **config_files**: Array of potential configuration file locations
+- **system_executables**: Array of system executables including:
+  - **name**: Executable name
+  - **path**: Full path to executable
+  - **version**: Version information (when available)
+  - **config_files**: Array of potential configuration file locations
+- **architecture**: Target architecture
+
+**Package manager support:**
+- **Linux**: dpkg (Debian/Ubuntu), rpm (Red Hat/CentOS/Fedora), pacman (Arch), apk (Alpine)
+- **macOS**: Homebrew (brew)
+- **FreeBSD**: pkg
+
+**Architecture-specific features:**
+- Cross-platform package manager detection
+- Version extraction for common executables (bash, python3, git, vim)
+- Configuration file location mapping based on package conventions
+- Configurable limits via environment variables
 
 ### 50_uptime_info.sh
 
@@ -683,6 +712,10 @@ The plugins support configuration through environment variables to control resou
 - `MAX_NETNS=20` - Maximum network namespaces
 - `MAX_DOCKER_NETWORKS=10` - Maximum Docker bridge networks
 
+#### Package and Executable Plugin (40_packages_execs.sh)
+- `MAX_PACKAGES=30` - Maximum number of packages to collect
+- `MAX_EXECUTABLES=20` - Maximum number of executables to collect
+
 ### Usage Examples
 
 ```bash
@@ -694,6 +727,9 @@ MAX_INTERFACES=50 MAX_ROUTES=100 MAX_ARP_ENTRIES=200 ./collect_info.sh
 
 # Container-focused configuration
 MAX_DOCKER_NETWORKS=20 MAX_NETNS=50 ./collect_info.sh -o container-info.json
+
+# Software inventory focus
+MAX_PACKAGES=100 MAX_EXECUTABLES=50 ./collect_info.sh -o software-inventory.json
 ```
 
 ## Advanced Usage
