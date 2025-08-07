@@ -126,14 +126,22 @@ teardown() {
 @test "40_packages_execs.sh should handle missing package managers gracefully" {
     cd "$TEST_DIR"
     
-    # Create a mock environment without package managers
-    export PATH="/tmp/empty_path"
+    # Save original PATH
+    local original_path="$PATH"
+    
+    # Create a minimal environment without package managers but with essential commands
+    mkdir -p /tmp/minimal_path
+    export PATH="/tmp/minimal_path:/bin:/usr/bin"
+    
     run ./40_packages_execs.sh x86_64
     [ "$status" -eq 0 ]
     
     # Should still produce valid JSON
     echo "$output" | python3 -m json.tool >/dev/null
     [ $? -eq 0 ]
+    
+    # Restore original PATH
+    export PATH="$original_path"
 }
 
 @test "40_packages_execs.sh JSON structure should be consistent" {
