@@ -302,26 +302,10 @@ if [[ ! " $SUPPORTED_ARCHS " =~ " $ARCH " ]]; then
     echo "Warning: Architecture '$ARCH' not in supported list, proceeding with generic handling" >&2
 fi
 
+# Source shared dependency checker
+source "$(dirname "$0")/common/check_dependencies.sh"
+
 # Check dependencies
-check_dependencies() {
-    local missing_deps=""
-    local optional_deps="lldpctl ip arp brctl bridge docker"
-    
-    # Check for optional dependencies
-    for dep in $optional_deps; do
-        if ! command -v "$dep" >/dev/null 2>&1; then
-            missing_deps="${missing_deps}$dep "
-        fi
-    done
-    
-    # Warn about missing dependencies but continue
-    if [[ -n "$missing_deps" ]]; then
-        echo "Warning: Missing optional dependencies for LLDP plugin: $missing_deps" >&2
-        echo "Network discovery may use fallback methods" >&2
-    fi
-}
-
-check_dependencies
-
+check_dependencies "lldpctl ip arp brctl bridge docker"
 # Execute main function
 get_lldp_neighbors
