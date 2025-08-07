@@ -56,20 +56,7 @@ jobs:
           bats test/plugins/*.bats
         fi
     
-    - name: Test all supported architectures
-      run: |
-        echo "Testing all supported architectures..."
-        architectures="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
-        
-        for arch in $architectures; do
-          echo "Testing architecture: $arch"
-          for plugin in plugins/*.sh; do
-            timeout 10 "$plugin" "$arch" > "test_${arch}_$(basename $plugin .sh).json"
-            python3 -m json.tool "test_${arch}_$(basename $plugin .sh).json" > /dev/null
-          done
-        done
-        echo "All architecture tests completed"
-    
+    # The architecture and plugin tests are now run in parallel in the 'arch-plugin-test' job using a matrix strategy.
     - name: Package release artifacts
       run: |
         mkdir -p release_package
