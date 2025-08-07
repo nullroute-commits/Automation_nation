@@ -35,7 +35,7 @@ detect_arch() {
 calculate_crc32() {
     local input="$1"
     if command -v cksum >/dev/null 2>&1; then
-        echo "$input" | cksum | awk '{print $1}'
+        printf '%s' "$input" | cksum | awk '{print $1}'
     else
         echo "unavailable"
     fi
