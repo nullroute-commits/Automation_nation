@@ -1,8 +1,8 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a bug in the system information collector
+title: '[BUG] '
+labels: 'bug'
 assignees: ''
 
 ---
@@ -10,29 +10,51 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Environment**
+- **Operating System**: [e.g., Ubuntu 24.04, CentOS 7, macOS 14]
+- **Architecture**: [e.g., x86_64, arm64, detected architecture if known]
+- **Shell**: [e.g., bash 5.1, zsh]
+- **System Type**: [e.g., bare metal, VM, container, WSL]
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Command and Output**
+Please provide the exact command you ran and the output:
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+```bash
+# Command that failed
+./collect_info.sh
 
-**Desktop (please complete the following information):**
- - OS: [e.g. Windows 10, macOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+# Or with output file
+./collect_info.sh -o output.json
+```
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Error Output**
+Please include any error messages from stderr:
+```
+[Paste error messages here]
+```
 
-**Additional context**
-Add any other context about the problem here.
+**Expected vs Actual Behavior**
+- **Expected**: What you expected to happen
+- **Actual**: What actually happened
+
+**Plugin-Specific Issues**
+If the issue is with a specific plugin, please indicate:
+- **Plugin**: [e.g., 10_os_info.sh, 31_network_stats.sh]
+- **Manual Test**: Result of running the plugin directly:
+  ```bash
+  ./plugins/PLUGIN_NAME.sh x86_64
+  ```
+
+**JSON Output**
+If applicable, please provide the JSON output (sanitized of sensitive information):
+```json
+{
+  "sample": "output showing the issue"
+}
+```
+
+**Additional Context**
+- Missing system tools or commands
+- Custom system configuration
+- Network environment specifics
+- Any other relevant details
