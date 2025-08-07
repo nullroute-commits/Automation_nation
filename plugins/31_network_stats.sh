@@ -213,7 +213,7 @@ get_network_stats() {
                     multicast_groups+="{\"interface\":\"$(escape_json "$interface_name")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv6\"}"
                 fi
             fi
-        done < <(cat /proc/net/igmp6 2>/dev/null | head -${MAX_MCAST_GROUPS})
+        done < <(head -${MAX_MCAST_GROUPS} /proc/net/igmp6 2>/dev/null)
     fi
 
     # If no multicast groups found, add empty array
