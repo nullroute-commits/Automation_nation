@@ -3,7 +3,9 @@
 # Collects installed packages with versions and config locations,
 # and executables with versions and config files
 
-set -e
+# NOTE: Do not use 'set -e' in plugin scripts.
+# When plugins are executed via command substitution in the main script,
+# 'set -e' can cause unexpected behavior and silent failures.
 
 ARCH="$1"
 

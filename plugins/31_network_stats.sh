@@ -2,7 +2,9 @@
 # Network statistics plugin
 # Outputs interface statistics, route tables, and multicast group info in JSON format
 
-set -e
+# NOTE: Do not use 'set -e' in plugin scripts.
+# When plugins are executed via command substitution in the main script,
+# 'set -e' can cause unexpected behavior and silent failures.
 
 ARCH="$1"
 
