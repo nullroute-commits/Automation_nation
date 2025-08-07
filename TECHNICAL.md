@@ -14,8 +14,9 @@ This document provides in-depth technical details about the Automation_nation sy
 │ 1. Architecture Detection (detect_arch())                  │
 │ 2. Plugin Discovery (scan plugins/ directory)              │
 │ 3. Plugin Execution (sequential, ordered by filename)      │
-│ 4. JSON Aggregation (merge plugin outputs)                 │
-│ 5. Output Management (stdout or file)                      │
+│ 4. Metadata Collection (timestamps, plugin count)          │
+│ 5. JSON Aggregation (merge plugin outputs)                 │
+│ 6. Output Management (stdout or file)                      │
 └─────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -32,6 +33,66 @@ This document provides in-depth technical details about the Automation_nation sy
 │ plugins/[NN]_*.sh         - Future Extensions              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Advanced Features
+
+#### Collection Metadata System
+
+The main orchestrator automatically injects collection metadata into every output:
+
+```json
+{
+  "detected_architecture": "x86_64",
+  "collection_metadata": {
+    "timestamp": "2025-08-07T00:05:58Z",
+    "plugin_count": 7
+  },
+  "get_os_info": {
+    "data": { /* plugin data */ },
+    "collection_timestamp": "2025-08-07T00:05:58Z",
+    "completion_timestamp": "2025-08-07T00:05:59Z"
+  }
+}
+```
+
+**Metadata Fields:**
+- `collection_metadata.timestamp`: ISO 8601 timestamp when collection started
+- `collection_metadata.plugin_count`: Number of plugins executed
+- `{function_name}.collection_timestamp`: When individual plugin started
+- `{function_name}.completion_timestamp`: When individual plugin completed
+
+#### Enhanced JSON Validation System
+
+The orchestrator implements a two-tier JSON validation system:
+
+```bash
+validate_json() {
+    local json_string="$1"
+    local plugin_name="$2"
+    
+    # Tier 1: Basic structure check (fast)
+    if [[ ! "$json_string" =~ ^\{.*\}$ ]]; then
+        echo "Warning: Plugin $plugin_name did not return valid JSON structure. Skipping." >&2
+        return 1
+    fi
+    
+    # Tier 2: Python JSON validation (thorough, with fallback)
+    if command -v python3 >/dev/null 2>&1; then
+        if ! echo "$json_string" | python3 -m json.tool >/dev/null 2>&1; then
+            echo "Warning: Plugin $plugin_name returned malformed JSON. Skipping." >&2
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+```
+
+**Validation Features:**
+- **Fast regex validation**: Initial structure check for performance
+- **Python validation**: Thorough JSON parsing when Python is available
+- **Graceful degradation**: Falls back to regex-only when Python unavailable
+- **Plugin identification**: Error messages include plugin name for debugging
 
 ## Architecture Detection Engine
 
@@ -92,6 +153,43 @@ done
 
 ### Plugin Execution Protocol
 
+#### Function Name Extraction Algorithm
+
+The orchestrator uses an intelligent algorithm to extract the main function name from each plugin for structured output:
+
+```bash
+extract_function_name() {
+    local plugin_file="$1"
+    
+    # All plugins follow the pattern: they end with a call to their main function
+    # and all main functions follow the 'get_*' pattern
+    local function_name=$(tail -5 "$plugin_file" | grep -E "^get_[a-zA-Z_][a-zA-Z0-9_]*$" | tail -1)
+    
+    # Fallback: derive from filename if pattern not found
+    if [[ -z "$function_name" ]]; then
+        local basename_plugin=$(basename "$plugin_file" .sh)
+        local plugin_suffix="${basename_plugin#*_}"  # Remove numeric prefix
+        function_name="get_${plugin_suffix}"
+    fi
+    
+    echo "$function_name"
+}
+```
+
+**Algorithm Features:**
+- **Pattern Recognition**: Leverages consistent plugin design (all end with `get_*` function calls)
+- **Simplified Logic**: Reduced from 30+ lines to 13 lines while maintaining functionality
+- **Fallback Strategy**: Derives function name from filename when pattern not detected
+- **Robust**: Handles edge cases and plugin variations gracefully
+
+**Output Structure**: Function names become keys in the final JSON structure:
+```json
+{
+  "get_os_info": { "data": {...}, "collection_timestamp": "...", ... },
+  "get_hardware_info": { "data": {...}, "collection_timestamp": "...", ... }
+}
+```
+
 #### Input Contract
 - **Argument 1**: Detected architecture string (required)
 - **Environment**: Clean environment with standard PATH
@@ -129,31 +227,84 @@ done
 
 ### JSON Aggregation Algorithm
 
-The system merges plugin outputs using a sophisticated JSON concatenation approach:
+The system merges plugin outputs using a sophisticated JSON aggregation approach with metadata injection:
 
 ```bash
+# Start with basic structure and collection metadata
 JSON="{\"detected_architecture\": \"$ARCH\","
+JSON+="\"collection_metadata\": {"
+JSON+="\"timestamp\": \"$COLLECTION_START_TIME\","
+JSON+="\"plugin_count\": ${#PLUGINS[@]}"
+JSON+="},"
 
 FIRST=1
 for plugin in "${PLUGINS[@]}"; do
-  OUTPUT="$($plugin "$ARCH")"
-  FRAGMENT="$(echo "$OUTPUT" | jq -c 'to_entries | map("\(.key):\(.value|tojson)") | join(",")')"
+  plugin_basename=$(basename "$plugin")
+  function_name=$(extract_function_name "$plugin")
+  
+  # Capture execution time and output
+  start_time=$(get_timestamp)
+  OUTPUT="$("$plugin" "$ARCH")"
+  end_time=$(get_timestamp)
+  
+  if ! validate_json "$OUTPUT" "$plugin_basename"; then
+    continue
+  fi
+  
+  # Create the new structure with function name as key
   if [[ $FIRST -eq 1 ]]; then
-    JSON+="$FRAGMENT"
     FIRST=0
   else
-    JSON+=", $FRAGMENT"
+    JSON+=","
   fi
+  
+  # Strip the outer braces from plugin output to get just the content
+  PLUGIN_DATA="${OUTPUT:1:-1}"
+  
+  # Add plugin data with function name as key and timestamp
+  JSON+="\"$function_name\": {"
+  JSON+="\"data\": {$PLUGIN_DATA},"
+  JSON+="\"collection_timestamp\": \"$start_time\","
+  JSON+="\"completion_timestamp\": \"$end_time\""
+  JSON+="}"
 done
 
 JSON+="}"
 ```
 
-**Technical Notes:**
-- **Brace Stripping**: `${OUTPUT:1:-1}` removes first and last characters
-- **Comma Management**: First plugin gets no leading comma, subsequent ones do
-- **Architecture Injection**: System-level `detected_architecture` field always included
-- **Order Preservation**: Plugin execution order maintained in final JSON
+**Enhanced Aggregation Features:**
+- **Metadata Injection**: System-level metadata (architecture, timestamps, plugin count)
+- **Per-Plugin Timing**: Individual collection and completion timestamps
+- **Function-Based Keys**: Uses extracted function names as JSON keys
+- **Error Handling**: Skips malformed plugin outputs with logging
+- **Performance Tracking**: Enables analysis of plugin execution times
+
+**Output Structure Example:**
+```json
+{
+  "detected_architecture": "x86_64",
+  "collection_metadata": {
+    "timestamp": "2025-08-07T00:05:58Z",
+    "plugin_count": 7
+  },
+  "get_os_info": {
+    "data": {
+      "os_name": "Ubuntu",
+      "os_version": "24.04.2 LTS"
+    },
+    "collection_timestamp": "2025-08-07T00:05:58Z",
+    "completion_timestamp": "2025-08-07T00:05:59Z"
+  },
+  "get_hardware_info": {
+    "data": {
+      "cpu_model": "AMD EPYC 7763",
+      "memory_total": "15995 MB"
+    },
+    "collection_timestamp": "2025-08-07T00:05:59Z",
+    "completion_timestamp": "2025-08-07T00:06:00Z"
+  }
+}
+```
 
 ## Plugin Implementation Patterns
 

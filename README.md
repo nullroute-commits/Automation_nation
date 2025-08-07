@@ -10,7 +10,7 @@ This repository provides a flexible system information collection framework that
 
 - **Plugin-based Architecture**: Extensible design for easy addition of new data collectors
 - **Multi-Architecture Support**: Supports 10 major CPU architectures  
-- **JSON Output**: Structured, machine-readable output format
+- **JSON Output**: Structured, machine-readable output format with metadata
 - **Automatic Plugin Discovery**: Dynamically finds and executes plugins
 - **Comprehensive Testing**: Full test coverage with Bats framework
 - **Network Discovery**: Advanced network interface, routing, and neighbor discovery
@@ -18,6 +18,9 @@ This repository provides a flexible system information collection framework that
 - **Configurable Limits**: Environment variable configuration for performance tuning
 - **Graceful Fallbacks**: Continues operation when optional tools are unavailable
 - **Cross-Platform**: Works on Linux, macOS, and other Unix-like systems
+- **Collection Metadata**: Automatic timestamps and execution timing for analysis
+- **Enhanced Validation**: Two-tier JSON validation with graceful degradation
+- **Dependency Detection**: Automatic detection and warning for missing optional tools
 
 ## Supported Architectures
 
@@ -77,67 +80,61 @@ Automation_nation/
 ```json
 {
   "detected_architecture": "x86_64",
-  "os_name": "Ubuntu",
-  "os_version": "24.04.2 LTS (Noble Numbat)",
-  "distribution": "ubuntu",
-  "distribution_version": "24.04",
-  "kernel_version": "6.11.0-1018-azure",
-  "architecture": "x86_64",
-  "cpu_model": "AMD EPYC 7763 64-Core Processor",
-  "cpu_cores": "1",
-  "cpu_threads": "2",
-  "cpu_frequency": "3240.421 MHz",
-  "memory_total": "7944 MB",
-  "memory_available": "6523 MB",
-  "disk_info": [
-    {
-      "filesystem": "/dev/root",
-      "size": "72G",
-      "used": "49G",
-      "available": "24G",
-      "usage": "68%",
-      "mountpoint": "/"
-    }
-  ],
-  "network_interfaces": [
-    {
-      "interface": "eth0",
-      "ipv4_addresses": ["10.1.0.215/20"],
-      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
-      "mac_address": "60:45:bd:06:42:7f",
-      "mtu": "1500",
-      "state": "up"
-    }
-  ],
-  "interface_statistics": [
-    {
-      "interface": "eth0",
-      "rx_bytes": "77457645",
-      "rx_packets": "58679",
-      "tx_bytes": "4771183",
-      "tx_packets": "11917"
-    }
-  ],
-  "ipv4_routes": [
-    {
-      "destination": "default",
-      "gateway": "10.1.0.1",
-      "interface": "eth0",
-      "metric": "100"
-    }
-  ],
-  "arp_table": [
-    {
-      "ip_address": "10.1.0.1",
-      "mac_address": "12:34:56:78:9a:bc",
-      "interface": "eth0",
-      "state": "REACHABLE"
-    }
-  ],
-  "uptime_seconds": "3647",
-  "uptime_formatted": "1h 0m 47s",
-  "boot_time": "1754453845",
-  "load_average": "0.15 0.18 0.12"
+  "collection_metadata": {
+    "timestamp": "2025-08-07T00:05:58Z",
+    "plugin_count": 7
+  },
+  "get_os_info": {
+    "data": {
+      "os_name": "Ubuntu",
+      "os_version": "24.04.2 LTS (Noble Numbat)",
+      "distribution": "ubuntu",
+      "distribution_version": "24.04",
+      "kernel_version": "6.11.0-1018-azure",
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-08-07T00:05:58Z",
+    "completion_timestamp": "2025-08-07T00:05:59Z"
+  },
+  "get_hardware_info": {
+    "data": {
+      "cpu_model": "AMD EPYC 7763 64-Core Processor",
+      "cpu_cores": "1",
+      "cpu_threads": "2",
+      "cpu_frequency": "3240.421 MHz",
+      "memory_total": "7944 MB",
+      "memory_available": "6523 MB",
+      "disk_info": [
+        {
+          "filesystem": "/dev/root",
+          "size": "72G",
+          "used": "49G",
+          "available": "24G",
+          "usage": "68%",
+          "mountpoint": "/"
+        }
+      ]
+    },
+    "collection_timestamp": "2025-08-07T00:05:59Z",
+    "completion_timestamp": "2025-08-07T00:06:00Z"
+  },
+  "get_ip_info": {
+    "data": {
+      "network_interfaces": [
+        {
+          "interface": "eth0",
+          "ipv4_addresses": ["10.1.0.215/20"],
+          "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
+          "mac_address": "60:45:bd:06:42:7f",
+          "mtu": "1500",
+          "state": "up"
+        }
+      ],
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-08-07T00:06:00Z",
+    "completion_timestamp": "2025-08-07T00:06:01Z"
+  }
 }
 ```
 
