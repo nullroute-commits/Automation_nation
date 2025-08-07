@@ -57,28 +57,12 @@ validate_json() {
 # Extract main function name from plugin
 extract_function_name() {
     local plugin_file="$1"
-    local function_name=""
     
-    # Look for the main function call at the end of the file
-    # This searches for lines that are just function names (after validation comments)
-    function_name=$(tail -5 "$plugin_file" | grep -E "^[a-zA-Z_][a-zA-Z0-9_]*$" | tail -1)
+    # All plugins follow the pattern: they end with a call to their main function
+    # and all main functions follow the 'get_*' pattern
+    local function_name=$(tail -5 "$plugin_file" | grep -E "^get_[a-zA-Z_][a-zA-Z0-9_]*$" | tail -1)
     
-    # If that doesn't work, extract from function definition and look for the main one
-    if [[ -z "$function_name" ]]; then
-        # Get all function definitions and find the one that matches the plugin purpose
-        local basename_plugin=$(basename "$plugin_file" .sh)
-        local plugin_type="${basename_plugin#*_}"  # Remove numeric prefix
-        
-        # Try to find a function that matches the plugin type
-        function_name=$(grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$plugin_file" | grep -i "$plugin_type" | head -1 | cut -d'(' -f1)
-        
-        # If still not found, get the first function definition that starts with 'get_'
-        if [[ -z "$function_name" ]]; then
-            function_name=$(grep -E "^get_[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$plugin_file" | head -1 | cut -d'(' -f1)
-        fi
-    fi
-    
-    # Final fallback: use filename-based naming
+    # Fallback: derive from filename if pattern not found
     if [[ -z "$function_name" ]]; then
         local basename_plugin=$(basename "$plugin_file" .sh)
         local plugin_suffix="${basename_plugin#*_}"  # Remove numeric prefix
