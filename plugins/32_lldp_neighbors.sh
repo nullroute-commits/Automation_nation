@@ -302,8 +302,19 @@ if [[ ! " $SUPPORTED_ARCHS " =~ " $ARCH " ]]; then
     echo "Warning: Architecture '$ARCH' not in supported list, proceeding with generic handling" >&2
 fi
 
-# Source shared dependency checker
-source "$(dirname "$0")/common/check_dependencies.sh"
+# Minimal dependency checker (inlined, as common/check_dependencies.sh is missing)
+check_dependencies() {
+    local missing=0
+    for dep in $1; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo "Error: Required dependency '$dep' is not installed or not in PATH." >&2
+            missing=1
+        fi
+    done
+    if [ "$missing" -ne 0 ]; then
+        exit 1
+    fi
+}
 
 # Check dependencies
 check_dependencies "lldpctl ip arp brctl bridge docker"
