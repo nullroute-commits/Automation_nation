@@ -43,8 +43,9 @@ Automation_nation/
 ├── collect_info.sh              # Main orchestrator script
 ├── plugins/                     # Data collection plugins
 │   ├── 10_os_info.sh           #   OS and distribution information
-│   ├── 20_hardware_info.sh     #   Hardware details (CPU, memory, disk)
-│   ├── 30_ip_info.sh           #   Network interface information
+│   ├── 20_hardware_info.sh     #   Enhanced hardware details (CPU, memory, disk, PCIe, USB, GPU)
+│   ├── 25_virtualization_info.sh #   VM/container platform and deployment detection
+│   ├── 30_ip_info.sh           #   Network interface information and external IP detection
 │   ├── 31_network_stats.sh     #   Network statistics and routing
 │   ├── 32_lldp_neighbors.sh    #   LLDP/ARP/bridge discovery
 │   ├── 40_packages_execs.sh    #   Package and executable inventory
@@ -241,8 +242,9 @@ ENABLE_SUDO_SUPPORT=1 ./collect_info.sh
 ```
 plugins/
 ├── 10_os_info.sh      # OS and distribution information
-├── 20_hardware_info.sh # CPU, memory, and disk information
-├── 30_ip_info.sh      # Network interface details (IPv4/IPv6)
+├── 20_hardware_info.sh # Enhanced hardware info (CPU, memory, disk, PCIe, USB, GPU, NICs)
+├── 25_virtualization_info.sh # VM/container platform and deployment detection
+├── 30_ip_info.sh      # Network interface details (IPv4/IPv6) and external IP detection
 ├── 31_network_stats.sh # Network statistics, routing, multicast
 ├── 32_lldp_neighbors.sh # LLDP neighbors, ARP table, bridge info
 ├── 40_packages_execs.sh # Installed packages and executables
@@ -317,7 +319,7 @@ Collects operating system and distribution information:
 
 ### 20_hardware_info.sh
 
-Collects hardware information:
+Collects comprehensive hardware information:
 
 - **cpu_model**: CPU model name/identifier
 - **cpu_cores**: Number of physical CPU cores
@@ -326,6 +328,10 @@ Collects hardware information:
 - **memory_total**: Total system memory in MB
 - **memory_available**: Available memory in MB
 - **disk_info**: Array of disk/filesystem information
+- **pcie_devices**: Array of PCIe device information (slot, device, vendor, device_id)
+- **usb_devices**: Array of USB device information (bus, device, id, description)
+- **gpu_info**: Array of GPU/APU information (slot, description, vendor, memory)
+- **network_hardware**: Array of network hardware details (slot, description, vendor, driver, speed)
 
 **Architecture-specific features:**
 - x86/x64: Uses `/proc/cpuinfo` model name and core detection
@@ -333,8 +339,29 @@ Collects hardware information:
 - PowerPC: Handles POWER-specific CPU detection
 - RISC-V/MIPS/SPARC: Architecture-specific CPU model parsing
 - Cross-platform memory and disk detection
+- Deep hardware discovery using lspci, lsusb, and system interfaces
+
+### 25_virtualization_info.sh
+
+Detects virtualization and container platform information:
+
+- **virtualization_type**: Type of virtualization (bare_metal, full_virtualization, paravirtualization, containerization, cloud_virtualization)
+- **vm_platform**: Virtual machine platform (VMware, KVM/QEMU, Hyper-V, VirtualBox, AWS EC2, etc.)
+- **hypervisor**: Hypervisor technology in use
+- **container_runtime**: Array of detected container runtimes (Docker, Podman, containerd, CRI-O)
+- **container_platform**: Array of container orchestration platforms (Kubernetes, Docker Swarm, OpenShift)
+- **deployment_info**: Cloud provider metadata (cloud_provider, instance_type, region)
+
+**Detection methods:**
+- systemd-detect-virt for reliable virtualization detection
+- DMI information fallback for VM platform identification
+- Cloud metadata API queries for AWS, GCP, Azure
+- Container runtime version detection
+- Kubernetes cluster detection and namespace information
 
 ### 30_ip_info.sh
+
+Collects detailed network interface and external connectivity information:
 
 Collects detailed network interface information:
 
@@ -345,6 +372,9 @@ Collects detailed network interface information:
   - **mac_address**: Hardware MAC address
   - **mtu**: Maximum Transmission Unit size
   - **state**: Interface state (up/down/unknown)
+- **external_ipv4**: External IPv4 address information including:
+  - **ip**: External/public IPv4 address or "behind-nat"/"unknown"
+  - **detection_method**: Method used for detection (curl/wget service, local analysis, etc.)
 - **architecture**: Target architecture
 
 **Architecture-specific features:**
@@ -352,6 +382,8 @@ Collects detailed network interface information:
 - ARM-specific handling for embedded systems and Raspberry Pi
 - PowerPC and IBM Z network interface specifics
 - Graceful fallback for systems without modern network tools
+- External IP detection through multiple web services with fallbacks
+- NAT/firewall detection and private IP range identification
 
 ### 31_network_stats.sh
 

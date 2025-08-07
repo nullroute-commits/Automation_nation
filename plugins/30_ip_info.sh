@@ -201,11 +201,79 @@ EOF
     fi
 
     interfaces_data+="]"
+    
+    # Get external IPv4 address
+    get_external_ipv4() {
+        local external_ip="unknown"
+        local method_used="none"
+        
+        # Try multiple external IP detection services
+        local services=(
+            "http://ifconfig.me/ip"
+            "http://ipinfo.io/ip"
+            "http://icanhazip.com"
+            "http://checkip.amazonaws.com"
+            "http://ipecho.net/plain"
+        )
+        
+        for service in "${services[@]}"; do
+            if command -v curl >/dev/null 2>&1; then
+                external_ip=$(curl -m 5 -s "$service" 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' | head -1)
+                if [[ -n "$external_ip" ]]; then
+                    method_used="curl-$service"
+                    break
+                fi
+            elif command -v wget >/dev/null 2>&1; then
+                external_ip=$(wget -T 5 -q -O - "$service" 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' | head -1)
+                if [[ -n "$external_ip" ]]; then
+                    method_used="wget-$service"
+                    break
+                fi
+            fi
+        done
+        
+        # Fallback: try to determine from default route and local investigation
+        if [[ "$external_ip" == "unknown" ]] || [[ -z "$external_ip" ]]; then
+            # Try to get gateway and make educated guess based on private/public ranges
+            if command -v ip >/dev/null 2>&1; then
+                local default_route=$(ip route show default 2>/dev/null | head -1)
+                if [[ -n "$default_route" ]]; then
+                    local gateway=$(echo "$default_route" | awk '/via/ {print $3}')
+                    local interface=$(echo "$default_route" | awk '/dev/ {print $5}')
+                    
+                    if [[ -n "$interface" ]]; then
+                        local local_ip=$(ip addr show "$interface" 2>/dev/null | grep "inet " | awk '{print $2}' | cut -d'/' -f1 | head -1)
+                        
+                        # Check if local IP is public (not in private ranges)
+                        if [[ -n "$local_ip" ]]; then
+                            if ! echo "$local_ip" | grep -qE "^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|127\.|169\.254\.)" ; then
+                                external_ip="$local_ip"
+                                method_used="local-public-ip"
+                            else
+                                external_ip="behind-nat"
+                                method_used="private-ip-detected"
+                            fi
+                        fi
+                    fi
+                fi
+            fi
+        fi
+        
+        if [[ -z "$external_ip" ]]; then
+            external_ip="unknown"
+            method_used="detection-failed"
+        fi
+        
+        echo "{\"ip\":\"$external_ip\",\"detection_method\":\"$method_used\"}"
+    }
+    
+    local external_ipv4=$(get_external_ipv4)
 
     # Output final JSON
     cat << EOF
 {
   "network_interfaces": $interfaces_data,
+  "external_ipv4": $external_ipv4,
   "architecture": "$ARCH"
 }
 EOF
