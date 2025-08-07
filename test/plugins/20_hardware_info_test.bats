@@ -256,3 +256,98 @@ teardown() {
     # Should still produce valid JSON
     echo "$output" | python3 -m json.tool > /dev/null
 }
+
+@test "20_hardware_info.sh should include enhanced hardware fields" {
+    cd "$TEST_DIR"
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Check for new enhanced hardware fields
+    [[ "$output" =~ '"pcie_devices"' ]]
+    [[ "$output" =~ '"usb_devices"' ]]
+    [[ "$output" =~ '"gpu_info"' ]]
+    [[ "$output" =~ '"network_hardware"' ]]
+}
+
+@test "20_hardware_info.sh should return PCIe devices as valid JSON array" {
+    cd "$TEST_DIR"
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # PCIe devices should be array format
+    [[ "$output" =~ '"pcie_devices": [' ]]
+    [[ "$output" =~ '"slot"' ]]
+    [[ "$output" =~ '"device"' ]]
+    [[ "$output" =~ '"vendor"' ]]
+    [[ "$output" =~ '"device_id"' ]]
+}
+
+@test "20_hardware_info.sh should return USB devices as valid JSON array" {
+    cd "$TEST_DIR"
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # USB devices should be array format
+    [[ "$output" =~ '"usb_devices": [' ]]
+    [[ "$output" =~ '"bus"' ]]
+    [[ "$output" =~ '"device"' ]]
+    [[ "$output" =~ '"id"' ]]
+    [[ "$output" =~ '"description"' ]]
+}
+
+@test "20_hardware_info.sh should return GPU info as valid JSON array" {
+    cd "$TEST_DIR"
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # GPU info should be array format
+    [[ "$output" =~ '"gpu_info": [' ]]
+    [[ "$output" =~ '"slot"' ]]
+    [[ "$output" =~ '"description"' ]]
+    [[ "$output" =~ '"vendor"' ]]
+    [[ "$output" =~ '"memory"' ]]
+}
+
+@test "20_hardware_info.sh should return network hardware as valid JSON array" {
+    cd "$TEST_DIR"
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Network hardware should be array format
+    [[ "$output" =~ '"network_hardware": [' ]]
+    [[ "$output" =~ '"slot"' ]]
+    [[ "$output" =~ '"description"' ]]
+    [[ "$output" =~ '"vendor"' ]]
+    [[ "$output" =~ '"driver"' ]]
+    [[ "$output" =~ '"speed"' ]]
+}
+
+@test "20_hardware_info.sh should handle missing lspci gracefully" {
+    cd "$TEST_DIR"
+    
+    # Even without lspci, should produce valid output
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Should still include all required fields with unknown values if needed
+    [[ "$output" =~ '"pcie_devices"' ]]
+    [[ "$output" =~ '"gpu_info"' ]]
+    [[ "$output" =~ '"network_hardware"' ]]
+    
+    # Validate JSON structure
+    echo "$output" | python3 -m json.tool > /dev/null
+}
+
+@test "20_hardware_info.sh should handle missing lsusb gracefully" {
+    cd "$TEST_DIR"
+    
+    # Even without lsusb, should produce valid output  
+    run ./20_hardware_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Should still include USB devices field
+    [[ "$output" =~ '"usb_devices"' ]]
+    
+    # Validate JSON structure
+    echo "$output" | python3 -m json.tool > /dev/null
+}

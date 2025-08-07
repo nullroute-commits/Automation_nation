@@ -234,3 +234,64 @@ teardown() {
     echo "$network_interfaces" | python3 -m json.tool > /dev/null
     [[ "$network_interfaces" =~ "interface" ]]
 }
+
+@test "30_ip_info.sh should include external IPv4 detection" {
+    cd "$TEST_DIR"
+    run ./30_ip_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Should include external_ipv4 field
+    [[ "$output" =~ '"external_ipv4"' ]]
+    [[ "$output" =~ '"ip"' ]]
+    [[ "$output" =~ '"detection_method"' ]]
+}
+
+@test "30_ip_info.sh should return valid external IP structure" {
+    cd "$TEST_DIR"
+    run ./30_ip_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # External IP should be object format with ip and detection_method
+    [[ "$output" =~ '"external_ipv4": {' ]]
+    [[ "$output" =~ '"ip":' ]]
+    [[ "$output" =~ '"detection_method":' ]]
+    
+    # Extract external_ipv4 object and validate it separately
+    external_ipv4=$(echo "$output" | python3 -c "import json, sys; data=json.load(sys.stdin); print(json.dumps(data['external_ipv4']))")
+    echo "$external_ipv4" | python3 -m json.tool > /dev/null
+}
+
+@test "30_ip_info.sh should handle external IP detection gracefully" {
+    cd "$TEST_DIR"
+    run ./30_ip_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Should always include external IP info even if detection fails
+    [[ "$output" =~ '"external_ipv4"' ]]
+    
+    # IP field should exist (can be "unknown", "behind-nat", or actual IP)
+    [[ "$output" =~ '"ip":' ]]
+    
+    # Detection method should indicate what was attempted
+    [[ "$output" =~ '"detection_method":' ]]
+}
+
+@test "30_ip_info.sh should include all required interface fields" {
+    cd "$TEST_DIR"
+    run ./30_ip_info.sh x86_64
+    [ "$status" -eq 0 ]
+    
+    # Should include both network interfaces and external IP
+    [[ "$output" =~ '"network_interfaces"' ]]
+    [[ "$output" =~ '"external_ipv4"' ]]
+    [[ "$output" =~ '"architecture"' ]]
+    
+    # Network interfaces should include required interface fields
+    [[ "$output" =~ '"interface"' ]]
+    [[ "$output" =~ '"ipv4_addresses"' ]]
+    [[ "$output" =~ '"ipv6_addresses"' ]]
+    [[ "$output" =~ '"mac_address"' ]]
+    [[ "$output" =~ '"mtu"' ]]
+    [[ "$output" =~ '"state"' ]]
+}
+}

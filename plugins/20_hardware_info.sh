@@ -15,6 +15,10 @@ get_hardware_info() {
     local memory_total=""
     local memory_available=""
     local disk_info=""
+    local pcie_devices=""
+    local usb_devices=""
+    local gpu_info=""
+    local network_hardware=""
     
     # Get CPU information
     if [[ -f /proc/cpuinfo ]]; then
@@ -173,6 +177,157 @@ get_hardware_info() {
     
     disk_info+="]"
     
+    # Get PCIe device information
+    pcie_devices="["
+    local first_pcie=true
+    
+    if command -v lspci >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                local slot=$(echo "$line" | cut -d' ' -f1)
+                local device_info=$(echo "$line" | cut -d' ' -f2-)
+                local vendor=""
+                local device_id=""
+                
+                # Try to get detailed info
+                if lspci -v -s "$slot" >/dev/null 2>&1; then
+                    vendor=$(lspci -v -s "$slot" 2>/dev/null | grep "Vendor:" | head -1 | cut -d: -f2- | sed 's/^ *//' || echo "unknown")
+                    device_id=$(lspci -n -s "$slot" 2>/dev/null | awk '{print $3}' || echo "unknown")
+                fi
+                
+                if [[ "$first_pcie" == "false" ]]; then
+                    pcie_devices+=","
+                fi
+                first_pcie=false
+                
+                pcie_devices+="{\"slot\":\"$slot\",\"device\":\"$device_info\",\"vendor\":\"$vendor\",\"device_id\":\"$device_id\"}"
+            fi
+        done < <(lspci 2>/dev/null | head -20)
+    fi
+    
+    if [[ "$first_pcie" == "true" ]]; then
+        pcie_devices+="{\"slot\":\"unknown\",\"device\":\"PCIe information unavailable\",\"vendor\":\"unknown\",\"device_id\":\"unknown\"}"
+    fi
+    pcie_devices+="]"
+    
+    # Get USB device information  
+    usb_devices="["
+    local first_usb=true
+    
+    if command -v lsusb >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            if [[ -n "$line" ]] && [[ "$line" =~ Bus.*Device ]]; then
+                local bus=$(echo "$line" | grep -o "Bus [0-9]*" | awk '{print $2}')
+                local device=$(echo "$line" | grep -o "Device [0-9]*" | awk '{print $2}')
+                local id=$(echo "$line" | grep -o "[0-9a-f]\{4\}:[0-9a-f]\{4\}" | head -1)
+                local description=$(echo "$line" | sed 's/.*[0-9a-f]\{4\}:[0-9a-f]\{4\} //')
+                
+                if [[ "$first_usb" == "false" ]]; then
+                    usb_devices+=","
+                fi
+                first_usb=false
+                
+                usb_devices+="{\"bus\":\"$bus\",\"device\":\"$device\",\"id\":\"$id\",\"description\":\"$description\"}"
+            fi
+        done < <(lsusb 2>/dev/null | head -15)
+    fi
+    
+    if [[ "$first_usb" == "true" ]]; then
+        usb_devices+="{\"bus\":\"unknown\",\"device\":\"unknown\",\"id\":\"unknown\",\"description\":\"USB information unavailable\"}"
+    fi
+    usb_devices+="]"
+    
+    # Get GPU/APU information
+    gpu_info="["
+    local first_gpu=true
+    
+    # Try multiple methods for GPU detection
+    if command -v lspci >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                local slot=$(echo "$line" | cut -d' ' -f1)
+                local gpu_desc=$(echo "$line" | cut -d' ' -f2-)
+                local vendor="unknown"
+                local memory="unknown"
+                
+                # Try to get vendor info
+                if echo "$gpu_desc" | grep -qi "nvidia"; then
+                    vendor="NVIDIA"
+                elif echo "$gpu_desc" | grep -qi "amd\|ati"; then
+                    vendor="AMD"
+                elif echo "$gpu_desc" | grep -qi "intel"; then
+                    vendor="Intel"
+                fi
+                
+                # Try to get memory info if nvidia-smi available
+                if [[ "$vendor" == "NVIDIA" ]] && command -v nvidia-smi >/dev/null 2>&1; then
+                    memory=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | sed 's/^ *//' || echo "unknown")
+                    if [[ "$memory" != "unknown" ]]; then
+                        memory="${memory} MB"
+                    fi
+                fi
+                
+                if [[ "$first_gpu" == "false" ]]; then
+                    gpu_info+=","
+                fi
+                first_gpu=false
+                
+                gpu_info+="{\"slot\":\"$slot\",\"description\":\"$gpu_desc\",\"vendor\":\"$vendor\",\"memory\":\"$memory\"}"
+            fi
+        done < <(lspci 2>/dev/null | grep -i "vga\|3d\|display" | head -5)
+    fi
+    
+    if [[ "$first_gpu" == "true" ]]; then
+        gpu_info+="{\"slot\":\"unknown\",\"description\":\"GPU information unavailable\",\"vendor\":\"unknown\",\"memory\":\"unknown\"}"
+    fi
+    gpu_info+="]"
+    
+    # Get detailed network hardware information
+    network_hardware="["
+    local first_nic=true
+    
+    if command -v lspci >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                local slot=$(echo "$line" | cut -d' ' -f1)
+                local nic_desc=$(echo "$line" | cut -d' ' -f2-)
+                local vendor="unknown"
+                local driver="unknown"
+                local speed="unknown"
+                
+                # Try to get driver info
+                if [[ -d "/sys/bus/pci/devices/0000:$slot" ]]; then
+                    if [[ -L "/sys/bus/pci/devices/0000:$slot/driver" ]]; then
+                        driver=$(readlink "/sys/bus/pci/devices/0000:$slot/driver" 2>/dev/null | sed 's/.*\///' || echo "unknown")
+                    fi
+                fi
+                
+                # Extract vendor from description
+                if echo "$nic_desc" | grep -qi "intel"; then
+                    vendor="Intel"
+                elif echo "$nic_desc" | grep -qi "broadcom"; then
+                    vendor="Broadcom"
+                elif echo "$nic_desc" | grep -qi "realtek"; then
+                    vendor="Realtek"
+                elif echo "$nic_desc" | grep -qi "qualcomm\|atheros"; then
+                    vendor="Qualcomm/Atheros"
+                fi
+                
+                if [[ "$first_nic" == "false" ]]; then
+                    network_hardware+=","
+                fi
+                first_nic=false
+                
+                network_hardware+="{\"slot\":\"$slot\",\"description\":\"$nic_desc\",\"vendor\":\"$vendor\",\"driver\":\"$driver\",\"speed\":\"$speed\"}"
+            fi
+        done < <(lspci 2>/dev/null | grep -i "network\|ethernet\|wireless\|wifi" | head -10)
+    fi
+    
+    if [[ "$first_nic" == "true" ]]; then
+        network_hardware+="{\"slot\":\"unknown\",\"description\":\"Network hardware information unavailable\",\"vendor\":\"unknown\",\"driver\":\"unknown\",\"speed\":\"unknown\"}"
+    fi
+    network_hardware+="]"
+    
     # Architecture-specific hardware adjustments
     case "$ARCH" in
         arm64|aarch64|aarch32|armv7l|armv8l|arm)
@@ -201,7 +356,11 @@ get_hardware_info() {
   "cpu_frequency": "$cpu_freq",
   "memory_total": "$memory_total",
   "memory_available": "$memory_available",
-  "disk_info": $disk_info
+  "disk_info": $disk_info,
+  "pcie_devices": $pcie_devices,
+  "usb_devices": $usb_devices,
+  "gpu_info": $gpu_info,
+  "network_hardware": $network_hardware
 }
 EOF
 }
