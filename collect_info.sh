@@ -45,7 +45,11 @@ calculate_crc32() {
 hash_plugin_content() {
     local plugin_file="$1"
     if [[ "$ENABLE_HASHING" -eq 1 ]] && [[ -f "$plugin_file" ]]; then
-        calculate_crc32 "$(cat "$plugin_file")"
+        if command -v cksum >/dev/null 2>&1; then
+            cksum "$plugin_file" | awk '{print $1}'
+        else
+            echo "unavailable"
+        fi
     else
         echo "disabled"
     fi
