@@ -8,6 +8,10 @@ PLUGIN_DIR="./plugins"
 OUTPUT_FILE=""
 PLUGINS=()
 
+# Configuration options
+ENABLE_HASHING=${ENABLE_HASHING:-0}
+ENABLE_SUDO_SUPPORT=${ENABLE_SUDO_SUPPORT:-0}
+
 TOP_ARCHS="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
 
 detect_arch() {
@@ -27,8 +31,55 @@ detect_arch() {
   esac
 }
 
+# CRC32 hash calculation using cksum (most backwards compatible)
+calculate_crc32() {
+    local input="$1"
+    if command -v cksum >/dev/null 2>&1; then
+        echo "$input" | cksum | awk '{print $1}'
+    else
+        echo "unavailable"
+    fi
+}
+
+# Hash plugin file content
+hash_plugin_content() {
+    local plugin_file="$1"
+    if [[ "$ENABLE_HASHING" -eq 1 ]] && [[ -f "$plugin_file" ]]; then
+        calculate_crc32 "$(cat "$plugin_file")"
+    else
+        echo "disabled"
+    fi
+}
+
+# Hash function output data
+hash_function_data() {
+    local data="$1"
+    if [[ "$ENABLE_HASHING" -eq 1 ]]; then
+        calculate_crc32 "$data"
+    else
+        echo "disabled"
+    fi
+}
+
+# Check for privilege escalation capabilities
+check_privilege_support() {
+    local has_sudo=0
+    if [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
+        if command -v sudo >/dev/null 2>&1; then
+            # Test if sudo is available and configured
+            if sudo -n true 2>/dev/null; then
+                has_sudo=1
+            fi
+        fi
+    fi
+    echo "$has_sudo"
+}
+
 usage() {
-  echo "Usage: $0 [-o output.json]"
+  echo "Usage: $0 [-o output.json] [-h]"
+  echo "Environment variables:"
+  echo "  ENABLE_HASHING=1      - Enable CRC32 hashing of datasets (default: 0)"
+  echo "  ENABLE_SUDO_SUPPORT=1 - Enable sudo privilege detection (default: 0)"
   exit 1
 }
 
@@ -119,12 +170,16 @@ fi
 
 ARCH=$(detect_arch)
 COLLECTION_START_TIME=$(get_timestamp)
+HAS_SUDO=$(check_privilege_support)
 
 # Start with basic structure and collection metadata
 JSON="{\"detected_architecture\": \"$ARCH\","
 JSON+="\"collection_metadata\": {"
 JSON+="\"timestamp\": \"$COLLECTION_START_TIME\","
-JSON+="\"plugin_count\": ${#PLUGINS[@]}"
+JSON+="\"plugin_count\": ${#PLUGINS[@]},"
+JSON+="\"hashing_enabled\": $ENABLE_HASHING,"
+JSON+="\"sudo_support_enabled\": $ENABLE_SUDO_SUPPORT,"
+JSON+="\"sudo_available\": $HAS_SUDO"
 JSON+="},"
 
 FIRST=1
@@ -132,14 +187,25 @@ for plugin in "${PLUGINS[@]}"; do
   plugin_basename=$(basename "$plugin")
   function_name=$(extract_function_name "$plugin")
   
+  # Calculate plugin file hash
+  plugin_hash=$(hash_plugin_content "$plugin")
+  
   # Capture execution time and output
   start_time=$(get_timestamp)
-  OUTPUT="$($plugin "$ARCH")"
+  if [[ "$HAS_SUDO" -eq 1 ]] && [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
+    # Try with sudo first, fallback to regular execution
+    OUTPUT="$(sudo "$plugin" "$ARCH" 2>/dev/null || "$plugin" "$ARCH")"
+  else
+    OUTPUT="$($plugin "$ARCH")"
+  fi
   end_time=$(get_timestamp)
   
   if ! validate_json "$OUTPUT" "$plugin_basename"; then
     continue
   fi
+  
+  # Calculate function data hash
+  function_hash=$(hash_function_data "$OUTPUT")
   
   # Create the new structure with function name as key
   if [[ $FIRST -eq 1 ]]; then
@@ -151,11 +217,13 @@ for plugin in "${PLUGINS[@]}"; do
   # Strip the outer braces from plugin output to get just the content
   PLUGIN_DATA="${OUTPUT:1:-1}"
   
-  # Add plugin data with function name as key and timestamp
+  # Add plugin data with function name as key, timestamps, and hashes
   JSON+="\"$function_name\": {"
   JSON+="\"data\": {$PLUGIN_DATA},"
   JSON+="\"collection_timestamp\": \"$start_time\","
-  JSON+="\"completion_timestamp\": \"$end_time\""
+  JSON+="\"completion_timestamp\": \"$end_time\","
+  JSON+="\"plugin_file_hash\": \"$plugin_hash\","
+  JSON+="\"function_data_hash\": \"$function_hash\""
   JSON+="}"
 done
 
