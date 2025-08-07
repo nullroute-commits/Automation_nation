@@ -178,7 +178,7 @@ get_network_stats() {
             if [[ ! "$line" =~ ^Idx ]] && [[ -n "$line" ]]; then
                 # Check if line contains an interface declaration
                 if [[ "$line" =~ [[:space:]]+([a-zA-Z0-9_]+)[[:space:]]*: ]]; then
-                    current_interface=$(echo "$line" | sed -E 's/.*[[:space:]]+([a-zA-Z0-9_]+)[[:space:]]*:.*/\1/')
+                    current_interface="${BASH_REMATCH[1]}"
                 elif [[ -n "$current_interface" ]] && [[ "$line" =~ ^[[:space:]]+[0-9A-F]{8} ]]; then
                     # Extract multicast group address
                     local group=$(echo "$line" | awk '{print $1}' | tr -d ' ')
