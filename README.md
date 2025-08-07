@@ -67,17 +67,17 @@ Automation_nation/
 # Collect system information and output to console
 ./collect_info.sh
 
-# Save output to a file
+# Save output to a file (CRC32 hashing enabled by default)
 ./collect_info.sh -o system_info.json
 
-# Enable CRC32 hashing for data integrity verification
-ENABLE_HASHING=1 ./collect_info.sh -o system_info_with_hashes.json
+# Disable CRC32 hashing for faster collection
+ENABLE_HASHING=0 ./collect_info.sh -o system_info_no_hashes.json
 
 # Enable sudo support for privileged operations (with fallback)
 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o system_info_privileged.json
 
-# Enable both hashing and sudo support
-ENABLE_HASHING=1 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o comprehensive_info.json
+# Disable hashing and enable sudo support for faster collection
+ENABLE_HASHING=0 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o fast_info.json
 
 # Display help
 ./collect_info.sh -h
@@ -207,8 +207,8 @@ The system supports optional CRC32 hashing for data integrity verification:
 - **Consistent**: Same plugin/data produces identical hash values
 
 ```bash
-# Enable hashing
-ENABLE_HASHING=1 ./collect_info.sh
+# Disable hashing for faster collection (hashing enabled by default)
+ENABLE_HASHING=0 ./collect_info.sh
 ```
 
 **Use Cases:**

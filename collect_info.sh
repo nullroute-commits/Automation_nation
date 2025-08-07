@@ -9,7 +9,7 @@ OUTPUT_FILE=""
 PLUGINS=()
 
 # Configuration options
-ENABLE_HASHING=${ENABLE_HASHING:-0}
+ENABLE_HASHING=${ENABLE_HASHING:-1}
 ENABLE_SUDO_SUPPORT=${ENABLE_SUDO_SUPPORT:-0}
 
 TOP_ARCHS="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
@@ -82,7 +82,7 @@ check_privilege_support() {
 usage() {
   echo "Usage: $0 [-o output.json] [-h]"
   echo "Environment variables:"
-  echo "  ENABLE_HASHING=1      - Enable CRC32 hashing of datasets (default: 0)"
+  echo "  ENABLE_HASHING=0      - Disable CRC32 hashing of datasets (default: 1)"
   echo "  ENABLE_SUDO_SUPPORT=1 - Enable sudo privilege detection (default: 0)"
   exit 1
 }
