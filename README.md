@@ -73,70 +73,107 @@ Automation_nation/
 
 ### Example Output
 
+The system produces comprehensive JSON output with nested structure including collection metadata and per-plugin timestamps:
+
 ```json
 {
   "detected_architecture": "x86_64",
-  "os_name": "Ubuntu",
-  "os_version": "24.04.2 LTS (Noble Numbat)",
-  "distribution": "ubuntu",
-  "distribution_version": "24.04",
-  "kernel_version": "6.11.0-1018-azure",
-  "architecture": "x86_64",
-  "cpu_model": "AMD EPYC 7763 64-Core Processor",
-  "cpu_cores": "1",
-  "cpu_threads": "2",
-  "cpu_frequency": "3240.421 MHz",
-  "memory_total": "7944 MB",
-  "memory_available": "6523 MB",
-  "disk_info": [
-    {
-      "filesystem": "/dev/root",
-      "size": "72G",
-      "used": "49G",
-      "available": "24G",
-      "usage": "68%",
-      "mountpoint": "/"
-    }
-  ],
-  "network_interfaces": [
-    {
-      "interface": "eth0",
-      "ipv4_addresses": ["10.1.0.215/20"],
-      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
-      "mac_address": "60:45:bd:06:42:7f",
-      "mtu": "1500",
-      "state": "up"
-    }
-  ],
-  "interface_statistics": [
-    {
-      "interface": "eth0",
-      "rx_bytes": "77457645",
-      "rx_packets": "58679",
-      "tx_bytes": "4771183",
-      "tx_packets": "11917"
-    }
-  ],
-  "ipv4_routes": [
-    {
-      "destination": "default",
-      "gateway": "10.1.0.1",
-      "interface": "eth0",
-      "metric": "100"
-    }
-  ],
-  "arp_table": [
-    {
-      "ip_address": "10.1.0.1",
-      "mac_address": "12:34:56:78:9a:bc",
-      "interface": "eth0",
-      "state": "REACHABLE"
-    }
-  ],
-  "uptime_seconds": "3647",
-  "uptime_formatted": "1h 0m 47s",
-  "boot_time": "1754453845",
-  "load_average": "0.15 0.18 0.12"
+  "collection_metadata": {
+    "timestamp": "2025-01-15T14:30:45Z",
+    "plugin_count": 7
+  },
+  "get_os_info": {
+    "data": {
+      "os_name": "Ubuntu",
+      "os_version": "24.04.2 LTS (Noble Numbat)",
+      "distribution": "ubuntu",
+      "distribution_version": "24.04",
+      "kernel_version": "6.11.0-1018-azure",
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_hardware_info": {
+    "data": {
+      "cpu_model": "AMD EPYC 7763 64-Core Processor",
+      "cpu_cores": "2",
+      "cpu_threads": "4",
+      "cpu_frequency": "3240.421 MHz",
+      "memory_total": "7944 MB",
+      "memory_available": "6523 MB",
+      "disk_info": [
+        {
+          "filesystem": "/dev/root",
+          "size": "72G",
+          "used": "49G",
+          "available": "24G",
+          "usage": "68%",
+          "mountpoint": "/"
+        }
+      ]
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_ip_info": {
+    "data": {
+      "network_interfaces": [
+        {
+          "interface": "eth0",
+          "ipv4_addresses": ["10.1.0.215/20"],
+          "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
+          "mac_address": "60:45:bd:06:42:7f",
+          "mtu": "1500",
+          "state": "up"
+        }
+      ],
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_network_stats": {
+    "data": {
+      "interface_statistics": [
+        {
+          "interface": "eth0",
+          "rx_bytes": "77457645",
+          "rx_packets": "58679",
+          "tx_bytes": "4771183",
+          "tx_packets": "11917"
+        }
+      ],
+      "ipv4_routes": [
+        {
+          "destination": "default",
+          "gateway": "10.1.0.1",
+          "interface": "eth0",
+          "metric": "100"
+        }
+      ],
+      "listening_ports": [
+        {
+          "protocol": "tcp",
+          "local_address": "0.0.0.0:22",
+          "state": "LISTEN"
+        }
+      ]
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_uptime_info": {
+    "data": {
+      "uptime_seconds": "3647",
+      "uptime_formatted": "1h 0m 47s",
+      "boot_time": "1754453845",
+      "load_average": "0.15 0.18 0.12",
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  }
 }
 ```
 
@@ -473,139 +510,15 @@ find test/ -name "*.bats" -exec bats {} \;
 
 ### Sample Complete JSON Output
 
-When all plugins run successfully, the system produces comprehensive JSON output including OS information, hardware details, network configuration, and uptime statistics:
+The system produces structured output with metadata and per-plugin timing information. When all plugins run successfully, the comprehensive JSON includes all system information:
 
-```json
-{
-  "detected_architecture": "x86_64",
-  "os_name": "Ubuntu",
-  "os_version": "24.04.2 LTS (Noble Numbat)",
-  "distribution": "ubuntu",
-  "distribution_version": "24.04",
-  "kernel_version": "6.11.0-1018-azure",
-  "architecture": "x86_64",
-  "cpu_model": "AMD EPYC 7763 64-Core Processor",
-  "cpu_cores": "1",
-  "cpu_threads": "2",
-  "cpu_frequency": "3244.330 MHz",
-  "memory_total": "7944 MB",
-  "memory_available": "6591 MB",
-  "disk_info": [
-    {
-      "filesystem": "/dev/root",
-      "size": "72G",
-      "used": "48G",
-      "available": "24G",
-      "usage": "67%",
-      "mountpoint": "/"
-    },
-    {
-      "filesystem": "/dev/sda16",
-      "size": "881M",
-      "used": "60M",
-      "available": "760M",
-      "usage": "8%",
-      "mountpoint": "/boot"
-    },
-    {
-      "filesystem": "/dev/sda15",
-      "size": "105M",
-      "used": "6.2M",
-      "available": "99M",
-      "usage": "6%",
-      "mountpoint": "/boot/efi"
-    }
-  ],
-  "network_interfaces": [
-    {
-      "interface": "eth0",
-      "ipv4_addresses": ["10.1.0.215/20"],
-      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
-      "mac_address": "60:45:bd:06:42:7f",
-      "mtu": "1500",
-      "state": "up"
-    },
-    {
-      "interface": "docker0",
-      "ipv4_addresses": ["172.17.0.1/16"],
-      "ipv6_addresses": [],
-      "mac_address": "02:42:a1:b2:c3:d4",
-      "mtu": "1500",
-      "state": "down"
-    }
-  ],
-  "interface_statistics": [
-    {
-      "interface": "eth0",
-      "rx_bytes": "77457645",
-      "rx_packets": "58679",
-      "rx_errors": "0",
-      "rx_dropped": "0",
-      "tx_bytes": "4771183",
-      "tx_packets": "11917",
-      "tx_errors": "0",
-      "tx_dropped": "0"
-    }
-  ],
-  "ipv4_routes": [
-    {
-      "destination": "default",
-      "gateway": "10.1.0.1",
-      "interface": "eth0",
-      "metric": "100"
-    },
-    {
-      "destination": "10.1.0.0/20",
-      "gateway": "direct",
-      "interface": "eth0",
-      "metric": "100"
-    }
-  ],
-  "ipv6_routes": [
-    {
-      "destination": "fe80::/64",
-      "gateway": "direct",
-      "interface": "eth0",
-      "metric": "256"
-    }
-  ],
-  "multicast_groups": [
-    {
-      "interface": "eth0",
-      "group": "224.0.0.1",
-      "version": "ipv4"
-    }
-  ],
-  "listening_ports": [
-    {
-      "protocol": "tcp",
-      "local_address": "0.0.0.0:22",
-      "state": "LISTEN"
-    }
-  ],
-  "lldp_neighbors": [],
-  "arp_table": [
-    {
-      "ip_address": "10.1.0.1",
-      "mac_address": "12:34:56:78:9a:bc",
-      "interface": "eth0",
-      "state": "REACHABLE"
-    }
-  ],
-  "bridge_info": [
-    {
-      "bridge_name": "docker0",
-      "bridge_id": "8000.0242a1b2c3d4",
-      "stp_enabled": "no",
-      "interfaces": ""
-    }
-  ],
-  "network_namespaces": [],
-  "uptime_seconds": "112",
-  "uptime_formatted": "1m 52s",
-  "boot_time": "1754453845",
-  "load_average": "0.36 0.20 0.08"
-}
+**Note**: The actual output format includes plugin function names as top-level keys (e.g., `get_os_info`, `get_hardware_info`) with nested `data`, `collection_timestamp`, and `completion_timestamp` fields. The example below shows the logical structure with some formatting simplified for readability.
+
+For the actual nested JSON structure with plugin function names and timestamps, run `./collect_info.sh` to see the current format, or refer to the Example Output section above.
+
+```bash
+# Generate current format example
+./collect_info.sh | python3 -m json.tool
 ```
 
 ### Test Coverage

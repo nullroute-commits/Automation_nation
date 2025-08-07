@@ -129,30 +129,57 @@ done
 
 ### JSON Aggregation Algorithm
 
-The system merges plugin outputs using a sophisticated JSON concatenation approach:
+The system merges plugin outputs using a structured JSON approach with metadata and timestamps:
 
 ```bash
+# Start with basic structure and collection metadata
 JSON="{\"detected_architecture\": \"$ARCH\","
+JSON+="\"collection_metadata\": {"
+JSON+="\"timestamp\": \"$COLLECTION_START_TIME\","
+JSON+="\"plugin_count\": ${#PLUGINS[@]}"
+JSON+="},"
 
 FIRST=1
 for plugin in "${PLUGINS[@]}"; do
+  plugin_basename=$(basename "$plugin")
+  function_name=$(extract_function_name "$plugin")
+  
+  # Capture execution time and output
+  start_time=$(get_timestamp)
   OUTPUT="$($plugin "$ARCH")"
-  FRAGMENT="$(echo "$OUTPUT" | jq -c 'to_entries | map("\(.key):\(.value|tojson)") | join(",")')"
+  end_time=$(get_timestamp)
+  
+  if ! validate_json "$OUTPUT" "$plugin_basename"; then
+    continue
+  fi
+  
+  # Create the new structure with function name as key
   if [[ $FIRST -eq 1 ]]; then
-    JSON+="$FRAGMENT"
     FIRST=0
   else
-    JSON+=", $FRAGMENT"
+    JSON+=","
   fi
+  
+  # Strip the outer braces from plugin output to get just the content
+  PLUGIN_DATA="${OUTPUT:1:-1}"
+  
+  # Add plugin data with function name as key and timestamp
+  JSON+="\"$function_name\": {"
+  JSON+="\"data\": {$PLUGIN_DATA},"
+  JSON+="\"collection_timestamp\": \"$start_time\","
+  JSON+="\"completion_timestamp\": \"$end_time\""
+  JSON+="}"
 done
 
 JSON+="}"
 ```
 
 **Technical Notes:**
-- **Brace Stripping**: `${OUTPUT:1:-1}` removes first and last characters
-- **Comma Management**: First plugin gets no leading comma, subsequent ones do
-- **Architecture Injection**: System-level `detected_architecture` field always included
+- **Function Name Extraction**: Advanced algorithm extracts meaningful function names from plugins
+- **Nested Structure**: Plugin data wrapped in function-named objects with metadata
+- **Timing Information**: Per-plugin collection and completion timestamps
+- **Collection Metadata**: Top-level metadata including plugin count and collection start time
+- **Enhanced Validation**: Python-powered JSON validation with fallbacks
 - **Order Preservation**: Plugin execution order maintained in final JSON
 
 ## Plugin Implementation Patterns
