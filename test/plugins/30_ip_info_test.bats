@@ -294,4 +294,3 @@ teardown() {
     [[ "$output" =~ '"mtu"' ]]
     [[ "$output" =~ '"state"' ]]
 }
-}

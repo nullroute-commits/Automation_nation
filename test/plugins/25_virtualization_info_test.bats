@@ -23,7 +23,7 @@ teardown() {
 @test "virtualization plugin requires architecture parameter" {
     run plugins/25_virtualization_info.sh
     [ "$status" -eq 1 ]
-    [[ "$stderr" == *"Architecture parameter required"* ]]
+    [[ "$output" == *"Architecture parameter required"* ]]
 }
 
 @test "virtualization plugin outputs valid JSON" {
