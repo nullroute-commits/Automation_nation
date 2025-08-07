@@ -727,6 +727,173 @@ Validate JSON output:
 ./collect_info.sh | python3 -m json.tool
 ```
 
+## Security Considerations
+
+### Overview
+
+The Automation_nation system information collector is designed with security in mind, but users should be aware of security considerations when deploying and using this tool.
+
+### Privilege Requirements
+
+**No Root Access Required**: All plugins are designed to run as unprivileged users. The system only reads from standard system information sources available to regular users:
+
+- `/proc/` filesystem (read-only)
+- `/sys/` filesystem (read-only) 
+- `/etc/` configuration files (read-only)
+- Standard command-line utilities
+
+**Recommended Practice**: Run the collector as a dedicated non-privileged user account rather than as root or your personal account.
+
+### Plugin Security
+
+**Plugin Execution Safety**:
+- ✅ **Fixed**: Removed dangerous `set -e` usage from all plugins that could cause silent failures
+- ✅ **Validation**: Enhanced JSON output validation with Python fallback
+- ✅ **Input Sanitization**: Architecture parameter validation against known types
+- ✅ **Error Isolation**: Plugin failures don't crash the entire collection
+
+**Plugin Development Guidelines**:
+```bash
+# DO NOT use 'set -e' in plugins executed via command substitution
+# ❌ BAD:
+#!/bin/bash
+set -e
+
+# ✅ GOOD:
+#!/bin/bash
+# Use explicit error handling instead
+```
+
+**Plugin Directory Security**:
+- Set directory permissions to `755` with ownership by root or service user
+- Set plugin file permissions to `644` to prevent unauthorized modification
+- Regularly verify plugin integrity using checksums
+- Monitor for unauthorized plugin injection
+
+### Data Privacy and Sensitive Information
+
+**What is NOT collected**:
+- Passwords, private keys, or secrets
+- User home directory contents
+- Application data or databases
+- Network traffic or packet contents
+- Personal files or documents
+
+**What IS collected**:
+- OS version and distribution information
+- Hardware specifications (CPU, memory, disk usage)
+- Network interface configuration
+- Installed packages and system executables
+- System uptime and load averages
+- Network routing and interface statistics
+
+**Data Handling**:
+- All output is in structured JSON format for transparency
+- No data is transmitted over the network by the collector itself
+- Users control where output is stored (`-o` option)
+
+### Network Security
+
+**Network Information Collection**:
+- Interface configurations and IP addresses
+- Routing table information
+- Listening network services
+- ARP table and network neighbors
+
+**Security Notes**:
+- Network discovery uses read-only system interfaces
+- No active network scanning or probing
+- LLDP/CDP neighbor discovery uses passive listening only
+- Network namespace enumeration limited to available namespaces
+
+### Deployment Security
+
+**Containerized Environments**:
+```dockerfile
+# Secure container deployment example
+FROM alpine:latest
+RUN apk add --no-cache bash python3
+RUN adduser -D -s /bin/bash collector
+COPY collect_info.sh plugins/ /app/
+RUN chown -R root:root /app && chmod 755 /app && chmod 644 /app/plugins/*
+USER collector
+WORKDIR /app
+CMD ["./collect_info.sh"]
+```
+
+**System Integration**:
+```bash
+# Create dedicated service user
+sudo useradd -r -s /bin/bash -d /opt/automation_nation automation_collector
+
+# Secure file permissions
+sudo chown -R root:automation_collector /opt/automation_nation
+sudo chmod 755 /opt/automation_nation
+sudo chmod 644 /opt/automation_nation/plugins/*
+sudo chmod 755 /opt/automation_nation/collect_info.sh
+```
+
+### Output Security
+
+**JSON Output Sanitization**:
+- Special characters properly escaped
+- Control characters filtered out
+- Output format validation prevents injection attacks
+- Structured data format prevents command injection in downstream tools
+
+**Integration Security**:
+```bash
+# Secure output handling
+./collect_info.sh | jq -r '.get_os_info.data.os_name' | grep -E '^[a-zA-Z0-9 .-]+$'
+
+# Avoid direct shell evaluation of output
+# ❌ BAD: eval "$(./collect_info.sh | jq -r '.some_field')"
+# ✅ GOOD: Use structured parsing with validation
+```
+
+### Monitoring and Auditing
+
+**Security Monitoring**:
+- Monitor plugin execution for unexpected failures
+- Log collection timestamps for audit trails
+- Validate plugin integrity with checksums
+- Monitor for unauthorized modifications to plugin directory
+
+**Audit Recommendations**:
+- Regularly review installed plugins
+- Monitor system access patterns when collector runs
+- Validate output format and content for anomalies
+- Track collection frequency and usage patterns
+
+### Threat Model
+
+**Protected Against**:
+- Accidental privilege escalation (no sudo required)
+- Plugin injection attacks (directory permissions)
+- Output injection attacks (JSON escaping)
+- Silent failures (explicit error handling)
+- Information disclosure beyond system metadata
+
+**Potential Risks**:
+- System fingerprinting (by design - this is an information collector)
+- Resource exhaustion (configurable limits in place)
+- Side-channel information leakage through timing
+- Unauthorized access to collected output files
+
+**Mitigation Strategies**:
+- Use dedicated service account with minimal privileges
+- Secure output file permissions appropriately
+- Implement collection frequency limits
+- Monitor and audit collector usage
+
+### Compliance Considerations
+
+**Data Classification**: System metadata collection may be subject to organizational data classification policies. Review collected information against your security and privacy requirements.
+
+**Regulatory Compliance**: Consider requirements like GDPR, HIPAA, or SOX when deploying in regulated environments, particularly regarding system inventory and configuration data.
+
+**Change Management**: Implement proper change control for plugin modifications and new plugin deployments.
+
 ## Contributing
 
 1. Fork the repository

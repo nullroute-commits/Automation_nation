@@ -592,19 +592,163 @@ CMD ["./collect_info.sh"]
 ## Security Considerations
 
 ### Input Validation
-- **Architecture Parameter**: Validated against known architecture list
-- **Plugin Execution**: Only executable files from designated directory
-- **JSON Output**: Regex validation before aggregation
+
+**Architecture Parameter Validation**:
+```bash
+# validate against known architectures
+TOP_ARCHS="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
+for arch in $TOP_ARCHS; do
+    if [[ "$DETECTED_ARCH" == "$arch" ]]; then
+        VALID_ARCH=1
+        break
+    fi
+done
+```
+
+**Plugin Discovery Security**:
+- Only executable files from designated directory are considered plugins
+- No dynamic plugin loading from external sources
+- Plugin ordering based on filename prevents injection attacks
+
+**JSON Output Validation**:
+- Regex validation: `^\{.*\}$` for basic structure
+- Python JSON parsing validation when available
+- Malformed output gracefully handled and logged
+
+### Plugin Security Model
+
+**Safe Execution Environment**:
+```bash
+# Enhanced error handling - no 'set -e' in plugins
+validate_input() {
+    [[ -z "$ARCH" ]] && {
+        echo "Error: Architecture parameter required" >&2
+        exit 1
+    }
+}
+
+# Explicit error handling instead of 'set -e'
+if ! command -v required_tool >/dev/null 2>&1; then
+    echo "Warning: required_tool not found, using fallback" >&2
+    use_fallback_method
+fi
+```
+
+**Output Sanitization**:
+```bash
+# JSON string escaping function used in all plugins
+escape_json() {
+    echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\x0//g'
+}
+
+# Usage in plugin output
+cat << EOF
+{
+  "field": "$(escape_json "$user_data")",
+  "safe_field": "$validated_data"
+}
+EOF
+```
+
+### System Access Patterns
+
+**File System Access**:
+- **Read-only**: `/proc/`, `/sys/`, `/etc/` system directories
+- **No write access**: Temporary files only in `/tmp` if needed
+- **No traversal**: Fixed paths, no user-controlled directory traversal
+
+**Command Execution**:
+- **Whitelisted commands**: Only standard system utilities
+- **No shell injection**: All user data properly escaped
+- **Fallback handling**: Graceful degradation when tools unavailable
+
+**Network Access**:
+- **Local only**: No remote network connections initiated
+- **Passive discovery**: Read-only access to network configuration
+- **No active scanning**: Uses existing system network state
+
+### Attack Surface Analysis
+
+**Plugin Directory**:
+```bash
+# Recommended secure setup
+chown root:automation_collector /opt/automation_nation/plugins
+chmod 755 /opt/automation_nation/plugins
+chmod 644 /opt/automation_nation/plugins/*.sh
+chmod 755 /opt/automation_nation/collect_info.sh
+
+# Integrity verification
+find plugins/ -type f -exec sha256sum {} \; > plugins.checksums
+# Verify before each run
+sha256sum -c plugins.checksums
+```
+
+**Input Attack Vectors**:
+- **Architecture parameter**: Validated against known list
+- **Environment variables**: Plugin-specific limits with defaults
+- **File system state**: Read-only access minimizes impact
+
+**Output Attack Vectors**:
+- **JSON injection**: Prevented by proper escaping
+- **Command injection**: Structured output prevents shell evaluation
+- **Information disclosure**: Limited to intended system metadata
+
+### Secure Deployment Patterns
+
+**Service User Configuration**:
+```bash
+# Create dedicated service user
+useradd -r -s /bin/bash -d /opt/automation_nation \
+        -c "Automation Nation Collector" automation_collector
+
+# Minimal file permissions
+install -o root -g automation_collector -m 755 collect_info.sh /opt/automation_nation/
+install -o root -g automation_collector -m 644 plugins/*.sh /opt/automation_nation/plugins/
+```
+
+**Container Security**:
+```dockerfile
+FROM alpine:latest
+RUN adduser -D -s /bin/bash collector
+# Use specific tool versions for reproducibility
+RUN apk add --no-cache bash=5.2.15-r5 python3=3.11.8-r0
+USER collector
+# No privileged operations in container
+```
+
+**Monitoring Integration**:
+```bash
+# Secure output handling in monitoring systems
+./collect_info.sh | \
+  jq -c '.' | \
+  logger -t automation_nation -p local0.info
+
+# Rate limiting
+if [[ -f /tmp/.automation_nation_lock ]]; then
+    echo "Collection already in progress" >&2
+    exit 1
+fi
+touch /tmp/.automation_nation_lock
+trap 'rm -f /tmp/.automation_nation_lock' EXIT
+```
 
 ### Privilege Requirements
-- **Standard User**: All plugins designed for unprivileged execution
-- **File Access**: Read-only access to `/proc`, `/sys`, `/etc` system directories
-- **No Elevation**: No `sudo` or privilege escalation required
 
-### Attack Surface
-- **Plugin Directory**: Set directory permissions to `755` and plugin file permissions to `644`, with ownership by `root` (or the designated service user). Regularly verify plugin integrity using checksums or digital signatures to prevent unauthorized plugin injection.
-- **System Information**: No sensitive data collection (passwords, keys, etc.)
-- **Output Sanitization**: JSON escaping prevents injection in downstream systems
+**No Elevation Required**:
+- All plugins designed for unprivileged execution
+- Standard user permissions sufficient for all data sources
+- No `sudo` or privilege escalation needed anywhere in codebase
+
+**Minimal Access Principle**:
+- Read-only access to system information files
+- No access to user data or application files
+- No network privileges or special capabilities required
+
+**Service Account Recommendations**:
+- Dedicated non-login service account
+- Minimal group memberships
+- No home directory or shell access
+- Restricted file system access through chroot if desired
 
 ## Maintenance and Debugging
 
