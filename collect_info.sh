@@ -60,7 +60,7 @@ extract_function_name() {
     
     # All plugins follow the pattern: they end with a call to their main function
     # and all main functions follow the 'get_*' pattern
-    local function_name=$(tail -5 "$plugin_file" | grep -E "^get_[a-zA-Z_][a-zA-Z0-9_]*$" | tail -1)
+    local function_name=$(tail -5 "$plugin_file" | grep -E "^get_[a-zA-Z][a-zA-Z0-9_]*$" | tail -1)
     
     # Fallback: derive from filename if pattern not found
     if [[ -z "$function_name" ]]; then
