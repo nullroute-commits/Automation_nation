@@ -53,8 +53,7 @@ Automation_nation/
 ├── README.md                    # This documentation
 ├── TECHNICAL.md                 # Technical implementation guide
 ├── CONFIGURATION.md             # Configuration and tuning guide
-├── ANALYSIS_SUMMARY.md          # Project analysis documentation
-└── proj-SHA512_of_folder_creation_time/  # Placeholder directories (future use)
+└── ANALYSIS_SUMMARY.md          # Project analysis documentation
 ```
 
 ## Quick Start
@@ -74,70 +73,107 @@ Automation_nation/
 
 ### Example Output
 
+The system produces comprehensive JSON output with nested structure including collection metadata and per-plugin timestamps:
+
 ```json
 {
   "detected_architecture": "x86_64",
-  "os_name": "Ubuntu",
-  "os_version": "24.04.2 LTS (Noble Numbat)",
-  "distribution": "ubuntu",
-  "distribution_version": "24.04",
-  "kernel_version": "6.11.0-1018-azure",
-  "architecture": "x86_64",
-  "cpu_model": "AMD EPYC 7763 64-Core Processor",
-  "cpu_cores": "1",
-  "cpu_threads": "2",
-  "cpu_frequency": "3240.421 MHz",
-  "memory_total": "7944 MB",
-  "memory_available": "6523 MB",
-  "disk_info": [
-    {
-      "filesystem": "/dev/root",
-      "size": "72G",
-      "used": "49G",
-      "available": "24G",
-      "usage": "68%",
-      "mountpoint": "/"
-    }
-  ],
-  "network_interfaces": [
-    {
-      "interface": "eth0",
-      "ipv4_addresses": ["10.1.0.215/20"],
-      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
-      "mac_address": "60:45:bd:06:42:7f",
-      "mtu": "1500",
-      "state": "up"
-    }
-  ],
-  "interface_statistics": [
-    {
-      "interface": "eth0",
-      "rx_bytes": "77457645",
-      "rx_packets": "58679",
-      "tx_bytes": "4771183",
-      "tx_packets": "11917"
-    }
-  ],
-  "ipv4_routes": [
-    {
-      "destination": "default",
-      "gateway": "10.1.0.1",
-      "interface": "eth0",
-      "metric": "100"
-    }
-  ],
-  "arp_table": [
-    {
-      "ip_address": "10.1.0.1",
-      "mac_address": "12:34:56:78:9a:bc",
-      "interface": "eth0",
-      "state": "REACHABLE"
-    }
-  ],
-  "uptime_seconds": "3647",
-  "uptime_formatted": "1h 0m 47s",
-  "boot_time": "1754453845",
-  "load_average": "0.15 0.18 0.12"
+  "collection_metadata": {
+    "timestamp": "2025-01-15T14:30:45Z",
+    "plugin_count": 7
+  },
+  "get_os_info": {
+    "data": {
+      "os_name": "Ubuntu",
+      "os_version": "24.04.2 LTS (Noble Numbat)",
+      "distribution": "ubuntu",
+      "distribution_version": "24.04",
+      "kernel_version": "6.11.0-1018-azure",
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_hardware_info": {
+    "data": {
+      "cpu_model": "AMD EPYC 7763 64-Core Processor",
+      "cpu_cores": "2",
+      "cpu_threads": "4",
+      "cpu_frequency": "3240.421 MHz",
+      "memory_total": "7944 MB",
+      "memory_available": "6523 MB",
+      "disk_info": [
+        {
+          "filesystem": "/dev/root",
+          "size": "72G",
+          "used": "49G",
+          "available": "24G",
+          "usage": "68%",
+          "mountpoint": "/"
+        }
+      ]
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_ip_info": {
+    "data": {
+      "network_interfaces": [
+        {
+          "interface": "eth0",
+          "ipv4_addresses": ["10.1.0.215/20"],
+          "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
+          "mac_address": "60:45:bd:06:42:7f",
+          "mtu": "1500",
+          "state": "up"
+        }
+      ],
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_network_stats": {
+    "data": {
+      "interface_statistics": [
+        {
+          "interface": "eth0",
+          "rx_bytes": "77457645",
+          "rx_packets": "58679",
+          "tx_bytes": "4771183",
+          "tx_packets": "11917"
+        }
+      ],
+      "ipv4_routes": [
+        {
+          "destination": "default",
+          "gateway": "10.1.0.1",
+          "interface": "eth0",
+          "metric": "100"
+        }
+      ],
+      "listening_ports": [
+        {
+          "protocol": "tcp",
+          "local_address": "0.0.0.0:22",
+          "state": "LISTEN"
+        }
+      ]
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  },
+  "get_uptime_info": {
+    "data": {
+      "uptime_seconds": "3647",
+      "uptime_formatted": "1h 0m 47s",
+      "boot_time": "1754453845",
+      "load_average": "0.15 0.18 0.12",
+      "architecture": "x86_64"
+    },
+    "collection_timestamp": "2025-01-15T14:30:45Z",
+    "completion_timestamp": "2025-01-15T14:30:45Z"
+  }
 }
 ```
 
@@ -474,139 +510,15 @@ find test/ -name "*.bats" -exec bats {} \;
 
 ### Sample Complete JSON Output
 
-When all plugins run successfully, the system produces comprehensive JSON output including OS information, hardware details, network configuration, and uptime statistics:
+The system produces structured output with metadata and per-plugin timing information. When all plugins run successfully, the comprehensive JSON includes all system information:
 
-```json
-{
-  "detected_architecture": "x86_64",
-  "os_name": "Ubuntu",
-  "os_version": "24.04.2 LTS (Noble Numbat)",
-  "distribution": "ubuntu",
-  "distribution_version": "24.04",
-  "kernel_version": "6.11.0-1018-azure",
-  "architecture": "x86_64",
-  "cpu_model": "AMD EPYC 7763 64-Core Processor",
-  "cpu_cores": "1",
-  "cpu_threads": "2",
-  "cpu_frequency": "3244.330 MHz",
-  "memory_total": "7944 MB",
-  "memory_available": "6591 MB",
-  "disk_info": [
-    {
-      "filesystem": "/dev/root",
-      "size": "72G",
-      "used": "48G",
-      "available": "24G",
-      "usage": "67%",
-      "mountpoint": "/"
-    },
-    {
-      "filesystem": "/dev/sda16",
-      "size": "881M",
-      "used": "60M",
-      "available": "760M",
-      "usage": "8%",
-      "mountpoint": "/boot"
-    },
-    {
-      "filesystem": "/dev/sda15",
-      "size": "105M",
-      "used": "6.2M",
-      "available": "99M",
-      "usage": "6%",
-      "mountpoint": "/boot/efi"
-    }
-  ],
-  "network_interfaces": [
-    {
-      "interface": "eth0",
-      "ipv4_addresses": ["10.1.0.215/20"],
-      "ipv6_addresses": ["fe80::6245:bdff:fe06:427f/64"],
-      "mac_address": "60:45:bd:06:42:7f",
-      "mtu": "1500",
-      "state": "up"
-    },
-    {
-      "interface": "docker0",
-      "ipv4_addresses": ["172.17.0.1/16"],
-      "ipv6_addresses": [],
-      "mac_address": "02:42:a1:b2:c3:d4",
-      "mtu": "1500",
-      "state": "down"
-    }
-  ],
-  "interface_statistics": [
-    {
-      "interface": "eth0",
-      "rx_bytes": "77457645",
-      "rx_packets": "58679",
-      "rx_errors": "0",
-      "rx_dropped": "0",
-      "tx_bytes": "4771183",
-      "tx_packets": "11917",
-      "tx_errors": "0",
-      "tx_dropped": "0"
-    }
-  ],
-  "ipv4_routes": [
-    {
-      "destination": "default",
-      "gateway": "10.1.0.1",
-      "interface": "eth0",
-      "metric": "100"
-    },
-    {
-      "destination": "10.1.0.0/20",
-      "gateway": "direct",
-      "interface": "eth0",
-      "metric": "100"
-    }
-  ],
-  "ipv6_routes": [
-    {
-      "destination": "fe80::/64",
-      "gateway": "direct",
-      "interface": "eth0",
-      "metric": "256"
-    }
-  ],
-  "multicast_groups": [
-    {
-      "interface": "eth0",
-      "group": "224.0.0.1",
-      "version": "ipv4"
-    }
-  ],
-  "listening_ports": [
-    {
-      "protocol": "tcp",
-      "local_address": "0.0.0.0:22",
-      "state": "LISTEN"
-    }
-  ],
-  "lldp_neighbors": [],
-  "arp_table": [
-    {
-      "ip_address": "10.1.0.1",
-      "mac_address": "12:34:56:78:9a:bc",
-      "interface": "eth0",
-      "state": "REACHABLE"
-    }
-  ],
-  "bridge_info": [
-    {
-      "bridge_name": "docker0",
-      "bridge_id": "8000.0242a1b2c3d4",
-      "stp_enabled": "no",
-      "interfaces": ""
-    }
-  ],
-  "network_namespaces": [],
-  "uptime_seconds": "112",
-  "uptime_formatted": "1m 52s",
-  "boot_time": "1754453845",
-  "load_average": "0.36 0.20 0.08"
-}
+**Note**: The actual output format includes plugin function names as top-level keys (e.g., `get_os_info`, `get_hardware_info`) with nested `data`, `collection_timestamp`, and `completion_timestamp` fields. The example below shows the logical structure with some formatting simplified for readability.
+
+For the actual nested JSON structure with plugin function names and timestamps, run `./collect_info.sh` to see the current format, or refer to the Example Output section above.
+
+```bash
+# Generate current format example
+./collect_info.sh | python3 -m json.tool
 ```
 
 ### Test Coverage
@@ -814,6 +726,173 @@ Validate JSON output:
 ```bash
 ./collect_info.sh | python3 -m json.tool
 ```
+
+## Security Considerations
+
+### Overview
+
+The Automation_nation system information collector is designed with security in mind, but users should be aware of security considerations when deploying and using this tool.
+
+### Privilege Requirements
+
+**No Root Access Required**: All plugins are designed to run as unprivileged users. The system only reads from standard system information sources available to regular users:
+
+- `/proc/` filesystem (read-only)
+- `/sys/` filesystem (read-only) 
+- `/etc/` configuration files (read-only)
+- Standard command-line utilities
+
+**Recommended Practice**: Run the collector as a dedicated non-privileged user account rather than as root or your personal account.
+
+### Plugin Security
+
+**Plugin Execution Safety**:
+- ✅ **Fixed**: Removed dangerous `set -e` usage from all plugins that could cause silent failures
+- ✅ **Validation**: Enhanced JSON output validation with Python fallback
+- ✅ **Input Sanitization**: Architecture parameter validation against known types
+- ✅ **Error Isolation**: Plugin failures don't crash the entire collection
+
+**Plugin Development Guidelines**:
+```bash
+# DO NOT use 'set -e' in plugins executed via command substitution
+# ❌ BAD:
+#!/bin/bash
+set -e
+
+# ✅ GOOD:
+#!/bin/bash
+# Use explicit error handling instead
+```
+
+**Plugin Directory Security**:
+- Set directory permissions to `755` with ownership by root or service user
+- Set plugin file permissions to `644` to prevent unauthorized modification
+- Regularly verify plugin integrity using checksums
+- Monitor for unauthorized plugin injection
+
+### Data Privacy and Sensitive Information
+
+**What is NOT collected**:
+- Passwords, private keys, or secrets
+- User home directory contents
+- Application data or databases
+- Network traffic or packet contents
+- Personal files or documents
+
+**What IS collected**:
+- OS version and distribution information
+- Hardware specifications (CPU, memory, disk usage)
+- Network interface configuration
+- Installed packages and system executables
+- System uptime and load averages
+- Network routing and interface statistics
+
+**Data Handling**:
+- All output is in structured JSON format for transparency
+- No data is transmitted over the network by the collector itself
+- Users control where output is stored (`-o` option)
+
+### Network Security
+
+**Network Information Collection**:
+- Interface configurations and IP addresses
+- Routing table information
+- Listening network services
+- ARP table and network neighbors
+
+**Security Notes**:
+- Network discovery uses read-only system interfaces
+- No active network scanning or probing
+- LLDP/CDP neighbor discovery uses passive listening only
+- Network namespace enumeration limited to available namespaces
+
+### Deployment Security
+
+**Containerized Environments**:
+```dockerfile
+# Secure container deployment example
+FROM alpine:latest
+RUN apk add --no-cache bash python3
+RUN adduser -D -s /bin/bash collector
+COPY collect_info.sh plugins/ /app/
+RUN chown -R root:root /app && chmod 755 /app && chmod 644 /app/plugins/*
+USER collector
+WORKDIR /app
+CMD ["./collect_info.sh"]
+```
+
+**System Integration**:
+```bash
+# Create dedicated service user
+sudo useradd -r -s /bin/bash -d /opt/automation_nation automation_collector
+
+# Secure file permissions
+sudo chown -R root:automation_collector /opt/automation_nation
+sudo chmod 755 /opt/automation_nation
+sudo chmod 644 /opt/automation_nation/plugins/*
+sudo chmod 755 /opt/automation_nation/collect_info.sh
+```
+
+### Output Security
+
+**JSON Output Sanitization**:
+- Special characters properly escaped
+- Control characters filtered out
+- Output format validation prevents injection attacks
+- Structured data format prevents command injection in downstream tools
+
+**Integration Security**:
+```bash
+# Secure output handling
+./collect_info.sh | jq -r '.get_os_info.data.os_name' | grep -E '^[a-zA-Z0-9 .-]+$'
+
+# Avoid direct shell evaluation of output
+# ❌ BAD: eval "$(./collect_info.sh | jq -r '.some_field')"
+# ✅ GOOD: Use structured parsing with validation
+```
+
+### Monitoring and Auditing
+
+**Security Monitoring**:
+- Monitor plugin execution for unexpected failures
+- Log collection timestamps for audit trails
+- Validate plugin integrity with checksums
+- Monitor for unauthorized modifications to plugin directory
+
+**Audit Recommendations**:
+- Regularly review installed plugins
+- Monitor system access patterns when collector runs
+- Validate output format and content for anomalies
+- Track collection frequency and usage patterns
+
+### Threat Model
+
+**Protected Against**:
+- Accidental privilege escalation (no sudo required)
+- Plugin injection attacks (directory permissions)
+- Output injection attacks (JSON escaping)
+- Silent failures (explicit error handling)
+- Information disclosure beyond system metadata
+
+**Potential Risks**:
+- System fingerprinting (by design - this is an information collector)
+- Resource exhaustion (configurable limits in place)
+- Side-channel information leakage through timing
+- Unauthorized access to collected output files
+
+**Mitigation Strategies**:
+- Use dedicated service account with minimal privileges
+- Secure output file permissions appropriately
+- Implement collection frequency limits
+- Monitor and audit collector usage
+
+### Compliance Considerations
+
+**Data Classification**: System metadata collection may be subject to organizational data classification policies. Review collected information against your security and privacy requirements.
+
+**Regulatory Compliance**: Consider requirements like GDPR, HIPAA, or SOX when deploying in regulated environments, particularly regarding system inventory and configuration data.
+
+**Change Management**: Implement proper change control for plugin modifications and new plugin deployments.
 
 ## Contributing
 

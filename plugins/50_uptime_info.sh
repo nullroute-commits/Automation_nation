@@ -2,7 +2,9 @@
 # System uptime information plugin
 # Outputs uptime info in JSON format
 
-set -e
+# NOTE: Do not use 'set -e' in plugin scripts.
+# When plugins are executed via command substitution in the main script,
+# 'set -e' can cause unexpected behavior and silent failures.
 
 ARCH="$1"
 
