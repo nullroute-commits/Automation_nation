@@ -76,7 +76,7 @@ ENABLE_HASHING=0 ./collect_info.sh -o system_info_no_hashes.json
 # Enable sudo support for privileged operations (with fallback)
 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o system_info_privileged.json
 
-# Enable sudo support without hashing for fastest collection
+# Disable hashing and enable sudo support for faster collection
 ENABLE_HASHING=0 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o fast_info.json
 
 # Display help
