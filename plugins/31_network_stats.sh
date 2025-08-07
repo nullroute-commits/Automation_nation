@@ -172,39 +172,48 @@ get_network_stats() {
     local first_mcast=true
 
     if [[ -f /proc/net/igmp ]]; then
+        # Simplified parsing - extract interface and group info more reliably
+        local current_interface=""
         while IFS= read -r line; do
             if [[ ! "$line" =~ ^Idx ]] && [[ -n "$line" ]]; then
-                local interface=$(echo "$line" | awk '{print $2}')
-                local group=$(echo "$line" | awk '{print $4}')
+                # Check if line contains an interface declaration
+                if [[ "$line" =~ [[:space:]]+([a-zA-Z0-9_]+)[[:space:]]*: ]]; then
+                    current_interface=$(echo "$line" | sed -E 's/.*[[:space:]]+([a-zA-Z0-9_]+)[[:space:]]*:.*/\1/')
+                elif [[ -n "$current_interface" ]] && [[ "$line" =~ ^[[:space:]]+[0-9A-F]{8} ]]; then
+                    # Extract multicast group address
+                    local group=$(echo "$line" | awk '{print $1}' | tr -d ' ')
+                    
+                    if [[ -n "$group" ]] && [[ "$group" != "Group" ]]; then
+                        if [[ "$first_mcast" == "false" ]]; then
+                            multicast_groups+=","
+                        fi
+                        first_mcast=false
 
-                if [[ -n "$interface" ]] && [[ -n "$group" ]]; then
-                    if [[ "$first_mcast" == "false" ]]; then
-                        multicast_groups+=","
+                        multicast_groups+="{\"interface\":\"$(escape_json "$current_interface")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv4\"}"
                     fi
-                    first_mcast=false
-
-                    multicast_groups+="{\"interface\":\"$(escape_json "$interface")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv4\"}"
                 fi
             fi
-        done < <(tail -n +2 /proc/net/igmp | head -${MAX_MCAST_GROUPS})
+        done < <(cat /proc/net/igmp | head -${MAX_MCAST_GROUPS})
     fi
 
     if [[ -f /proc/net/igmp6 ]]; then
         while IFS= read -r line; do
             if [[ -n "$line" ]]; then
-                local interface=$(echo "$line" | awk '{print $2}')
-                local group=$(echo "$line" | awk '{print $4}')
+                # Parse igmp6 format: idx interface_name multicast_address refcnt flags timer
+                local interface_idx=$(echo "$line" | awk '{print $1}')
+                local interface_name=$(echo "$line" | awk '{print $2}')
+                local group=$(echo "$line" | awk '{print $3}')
 
-                if [[ -n "$interface" ]] && [[ -n "$group" ]]; then
+                if [[ -n "$interface_name" ]] && [[ -n "$group" ]] && [[ "$interface_name" != "igmp6" ]]; then
                     if [[ "$first_mcast" == "false" ]]; then
                         multicast_groups+=","
                     fi
                     first_mcast=false
 
-                    multicast_groups+="{\"interface\":\"$(escape_json "$interface")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv6\"}"
+                    multicast_groups+="{\"interface\":\"$(escape_json "$interface_name")\",\"group\":\"$(escape_json "$group")\",\"version\":\"ipv6\"}"
                 fi
             fi
-        done < <(tail -n +2 /proc/net/igmp6 | head -${MAX_MCAST_GROUPS})
+        done < <(cat /proc/net/igmp6 2>/dev/null | head -${MAX_MCAST_GROUPS})
     fi
 
     # If no multicast groups found, add empty array
@@ -220,10 +229,10 @@ get_network_stats() {
 
     if command -v ss >/dev/null 2>&1; then
         while IFS= read -r line; do
-            if [[ -n "$line" ]] && [[ ! "$line" =~ ^State ]]; then
+            if [[ -n "$line" ]] && [[ ! "$line" =~ ^Netid ]]; then
                 local protocol=$(echo "$line" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
-                local local_addr=$(echo "$line" | awk '{print $4}')
                 local state=$(echo "$line" | awk '{print $2}')
+                local local_addr=$(echo "$line" | awk '{print $5}')
 
                 if [[ "$state" == "LISTEN" ]] || [[ "$protocol" == "udp" ]]; then
                     if [[ "$first_port" == "false" ]]; then
@@ -241,6 +250,11 @@ get_network_stats() {
                 local protocol=$(echo "$line" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
                 local local_addr=$(echo "$line" | awk '{print $4}')
                 local state=$(echo "$line" | awk '{print $6}')
+
+                # Handle UDP which doesn't have a state column in the same position
+                if [[ "$protocol" == "udp" ]]; then
+                    state="UNCONN"
+                fi
 
                 if [[ "$state" == "LISTEN" ]] || [[ "$protocol" == "udp" ]]; then
                     if [[ "$first_port" == "false" ]]; then
