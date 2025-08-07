@@ -6,7 +6,21 @@ This guide covers configuration options and tuning parameters for the Automation
 
 ### Global Configuration
 
-No global configuration variables are currently supported. All configuration is done at the plugin level through environment variables.
+The system supports global configuration through environment variables:
+
+```bash
+# Data integrity and security options
+export ENABLE_HASHING=1           # Enable CRC32 hashing (default: 0)
+export ENABLE_SUDO_SUPPORT=1      # Enable sudo privilege support (default: 0)
+```
+
+**Hashing Configuration:**
+- `ENABLE_HASHING=0` (default): No hashing, minimal resource usage
+- `ENABLE_HASHING=1`: Enable CRC32 hashing of plugin files and function outputs
+
+**Privilege Configuration:**
+- `ENABLE_SUDO_SUPPORT=0` (default): Run as unprivileged user only
+- `ENABLE_SUDO_SUPPORT=1`: Attempt privileged execution with fallback
 
 ### Plugin-Specific Configuration
 
@@ -160,6 +174,27 @@ export MAX_ARP_ENTRIES=1000
 export MAX_LISTENING_PORTS=100
 
 ./collect_info.sh -o network-device-info.json
+```
+
+### Security-Focused Configuration
+
+```bash
+#!/bin/bash
+# Enable data integrity verification
+export ENABLE_HASHING=1
+
+./collect_info.sh -o secure-audit-info.json
+```
+
+### Privileged System Analysis
+
+```bash
+#!/bin/bash
+# Enable privileged operations with fallback
+export ENABLE_SUDO_SUPPORT=1
+export ENABLE_HASHING=1
+
+./collect_info.sh -o privileged-system-info.json
 ```
 
 ### Software Inventory/Security Audit

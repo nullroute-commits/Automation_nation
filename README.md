@@ -12,6 +12,8 @@ This repository provides a flexible system information collection framework that
 - **Multi-Architecture Support**: Supports 10 major CPU architectures  
 - **JSON Output**: Structured, machine-readable output format
 - **Automatic Plugin Discovery**: Dynamically finds and executes plugins
+- **Data Integrity**: Optional CRC32 hashing of plugin content and function outputs
+- **Privilege Support**: Optional sudo/privileged user support with graceful fallbacks
 - **Comprehensive Testing**: Full test coverage with Bats framework
 - **Network Discovery**: Advanced network interface, routing, and neighbor discovery
 - **Container Integration**: Docker bridge and network namespace detection
@@ -67,6 +69,15 @@ Automation_nation/
 # Save output to a file
 ./collect_info.sh -o system_info.json
 
+# Enable CRC32 hashing for data integrity verification
+ENABLE_HASHING=1 ./collect_info.sh -o system_info_with_hashes.json
+
+# Enable sudo support for privileged operations (with fallback)
+ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o system_info_privileged.json
+
+# Enable both hashing and sudo support
+ENABLE_HASHING=1 ENABLE_SUDO_SUPPORT=1 ./collect_info.sh -o comprehensive_info.json
+
 # Display help
 ./collect_info.sh -h
 ```
@@ -80,7 +91,10 @@ The system produces comprehensive JSON output with nested structure including co
   "detected_architecture": "x86_64",
   "collection_metadata": {
     "timestamp": "2025-01-15T14:30:45Z",
-    "plugin_count": 7
+    "plugin_count": 7,
+    "hashing_enabled": 1,
+    "sudo_support_enabled": 1,
+    "sudo_available": 1
   },
   "get_os_info": {
     "data": {
@@ -92,7 +106,9 @@ The system produces comprehensive JSON output with nested structure including co
       "architecture": "x86_64"
     },
     "collection_timestamp": "2025-01-15T14:30:45Z",
-    "completion_timestamp": "2025-01-15T14:30:45Z"
+    "completion_timestamp": "2025-01-15T14:30:45Z",
+    "plugin_file_hash": "2054604427",
+    "function_data_hash": "2915874064"
   },
   "get_hardware_info": {
     "data": {
@@ -176,6 +192,47 @@ The system produces comprehensive JSON output with nested structure including co
   }
 }
 ```
+
+## Data Integrity and Security
+
+### CRC32 Hashing
+
+The system supports optional CRC32 hashing for data integrity verification:
+
+- **Plugin File Hashes**: Hash of each plugin script content
+- **Function Data Hashes**: Hash of JSON output from each plugin function
+- **Backwards Compatible**: Uses standard `cksum` command available on all Unix systems
+- **Low Resource**: Minimal CPU and memory overhead
+- **Consistent**: Same plugin/data produces identical hash values
+
+```bash
+# Enable hashing
+ENABLE_HASHING=1 ./collect_info.sh
+```
+
+**Use Cases:**
+- Verify plugin integrity and detect unauthorized modifications
+- Validate data consistency across multiple collection runs
+- Security auditing and compliance requirements
+- Change detection in system configurations
+
+### Privilege Support
+
+Optional sudo/privileged user support with graceful fallbacks:
+
+- **Backwards Compatible**: Disabled by default, no changes to existing behavior
+- **Graceful Fallback**: Attempts privileged execution, falls back to unprivileged
+- **No Requirements**: Works without sudo configuration
+- **Security Focused**: Only escalates when explicitly enabled
+
+```bash
+# Enable sudo support
+ENABLE_SUDO_SUPPORT=1 ./collect_info.sh
+```
+
+**Privilege Status Indicators:**
+- `sudo_support_enabled`: Whether privilege support was requested
+- `sudo_available`: Whether sudo is available and configured for current user
 
 ## Plugin Architecture
 
