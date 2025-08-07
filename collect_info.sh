@@ -197,8 +197,17 @@ for plugin in "${PLUGINS[@]}"; do
   # Capture execution time and output
   start_time=$(get_timestamp)
   if [[ "$HAS_SUDO" -eq 1 ]] && [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
-    # Try with sudo first, fallback to regular execution
-    OUTPUT="$(sudo "$plugin" "$ARCH" 2>/dev/null || "$plugin" "$ARCH")"
+    # Try with sudo first, fallback to regular execution, but capture and log sudo errors
+    SUDO_OUTPUT=""
+    SUDO_ERROR=""
+    SUDO_OUTPUT="$(sudo "$plugin" "$ARCH" 2> >(SUDO_ERROR=$(cat); typeset -p SUDO_ERROR >&2))" || {
+      if [[ -n "$SUDO_ERROR" ]]; then
+        echo "Warning: sudo execution of $plugin failed with error:" >&2
+        echo "$SUDO_ERROR" >&2
+      fi
+      SUDO_OUTPUT="$("$plugin" "$ARCH")"
+    }
+    OUTPUT="$SUDO_OUTPUT"
   else
     OUTPUT="$($plugin "$ARCH")"
   fi
