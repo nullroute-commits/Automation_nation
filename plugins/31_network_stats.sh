@@ -299,5 +299,17 @@ if [[ -z "$ARCH" ]]; then
     exit 1
 fi
 
+# Sanitize architecture parameter (allow only alphanumeric and underscore)
+if [[ ! "$ARCH" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo "Error: Architecture parameter contains invalid characters" >&2
+    exit 1
+fi
+
+# Validate architecture is supported
+SUPPORTED_ARCHS="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
+if [[ ! " $SUPPORTED_ARCHS " =~ " $ARCH " ]]; then
+    echo "Warning: Architecture '$ARCH' not in supported list, proceeding with generic handling" >&2
+fi
+
 # Execute main function
 get_network_stats
