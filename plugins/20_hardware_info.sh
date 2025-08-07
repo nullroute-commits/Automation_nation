@@ -228,15 +228,18 @@ fi
 # Install bc if not available (for calculations)
 check_dependencies() {
     local missing_deps=""
+    local optional_deps="bc"
     
-    # Check for bc (used for calculations)
-    if ! command -v bc >/dev/null 2>&1; then
-        missing_deps="${missing_deps}bc "
-    fi
+    # Check for optional dependencies
+    for dep in $optional_deps; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing_deps="${missing_deps}$dep "
+        fi
+    done
     
     # Warn about missing dependencies but continue
     if [[ -n "$missing_deps" ]]; then
-        echo "Warning: Missing optional dependencies: $missing_deps" >&2
+        echo "Warning: Missing optional dependencies for hardware plugin: $missing_deps" >&2
         echo "Some calculations may fall back to basic arithmetic" >&2
     fi
 }
