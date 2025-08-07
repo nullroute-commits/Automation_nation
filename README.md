@@ -53,8 +53,7 @@ Automation_nation/
 ├── README.md                    # This documentation
 ├── TECHNICAL.md                 # Technical implementation guide
 ├── CONFIGURATION.md             # Configuration and tuning guide
-├── ANALYSIS_SUMMARY.md          # Project analysis documentation
-└── proj-SHA512_of_folder_creation_time/  # Placeholder directories (future use)
+└── ANALYSIS_SUMMARY.md          # Project analysis documentation
 ```
 
 ## Quick Start
