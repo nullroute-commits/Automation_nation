@@ -73,6 +73,87 @@ The system normalizes various `uname -m` outputs to standardized architecture id
 | `sparc64` | `sparc64` | Oracle SPARC systems |
 | `loongarch64` | `loongarch64` | Chinese LoongArch architecture |
 
+## Data Integrity and Security Implementation
+
+### CRC32 Hashing System
+
+The system implements optional CRC32 hashing for data integrity verification:
+
+```bash
+# CRC32 hash calculation using cksum (most backwards compatible)
+calculate_crc32() {
+    local input="$1"
+    if command -v cksum >/dev/null 2>&1; then
+        echo "$input" | cksum | awk '{print $1}'
+    else
+        echo "unavailable"
+    fi
+}
+
+# Hash plugin file content
+hash_plugin_content() {
+    local plugin_file="$1"
+    if [[ "$ENABLE_HASHING" -eq 1 ]] && [[ -f "$plugin_file" ]]; then
+        calculate_crc32 "$(cat "$plugin_file")"
+    else
+        echo "disabled"
+    fi
+}
+
+# Hash function output data
+hash_function_data() {
+    local data="$1"
+    if [[ "$ENABLE_HASHING" -eq 1 ]]; then
+        calculate_crc32 "$data"
+    else
+        echo "disabled"
+    fi
+}
+```
+
+**Implementation Details:**
+- **Algorithm Choice**: CRC32 via `cksum` for maximum backwards compatibility
+- **Resource Efficiency**: Minimal CPU and memory overhead
+- **Error Handling**: Graceful fallback when `cksum` unavailable
+- **Plugin Integrity**: Hashes plugin script content to detect modifications
+- **Data Integrity**: Hashes JSON output for consistency verification
+
+### Privilege Support System
+
+Optional sudo/privileged execution with graceful fallbacks:
+
+```bash
+# Check for privilege escalation capabilities
+check_privilege_support() {
+    local has_sudo=0
+    if [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
+        if command -v sudo >/dev/null 2>&1; then
+            # Test if sudo is available and configured
+            if sudo -n true 2>/dev/null; then
+                has_sudo=1
+            fi
+        fi
+    fi
+    echo "$has_sudo"
+}
+```
+
+**Privilege Execution Logic:**
+```bash
+if [[ "$HAS_SUDO" -eq 1 ]] && [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
+    # Try with sudo first, fallback to regular execution
+    OUTPUT="$(sudo "$plugin" "$ARCH" 2>/dev/null || "$plugin" "$ARCH")"
+else
+    OUTPUT="$($plugin "$ARCH")"
+fi
+```
+
+**Security Considerations:**
+- **No Requirements**: Works without sudo configuration
+- **Backwards Compatible**: Disabled by default
+- **Graceful Fallback**: Never fails due to privilege issues
+- **Non-Interactive**: Uses `sudo -n` to avoid password prompts
+
 ## Plugin System Implementation
 
 ### Plugin Discovery Mechanism
@@ -136,7 +217,10 @@ The system merges plugin outputs using a structured JSON approach with metadata 
 JSON="{\"detected_architecture\": \"$ARCH\","
 JSON+="\"collection_metadata\": {"
 JSON+="\"timestamp\": \"$COLLECTION_START_TIME\","
-JSON+="\"plugin_count\": ${#PLUGINS[@]}"
+JSON+="\"plugin_count\": ${#PLUGINS[@]},"
+JSON+="\"hashing_enabled\": $ENABLE_HASHING,"
+JSON+="\"sudo_support_enabled\": $ENABLE_SUDO_SUPPORT,"
+JSON+="\"sudo_available\": $HAS_SUDO"
 JSON+="},"
 
 FIRST=1
@@ -144,14 +228,25 @@ for plugin in "${PLUGINS[@]}"; do
   plugin_basename=$(basename "$plugin")
   function_name=$(extract_function_name "$plugin")
   
+  # Calculate plugin file hash
+  plugin_hash=$(hash_plugin_content "$plugin")
+  
   # Capture execution time and output
   start_time=$(get_timestamp)
-  OUTPUT="$($plugin "$ARCH")"
+  if [[ "$HAS_SUDO" -eq 1 ]] && [[ "$ENABLE_SUDO_SUPPORT" -eq 1 ]]; then
+    # Try with sudo first, fallback to regular execution
+    OUTPUT="$(sudo "$plugin" "$ARCH" 2>/dev/null || "$plugin" "$ARCH")"
+  else
+    OUTPUT="$($plugin "$ARCH")"
+  fi
   end_time=$(get_timestamp)
   
   if ! validate_json "$OUTPUT" "$plugin_basename"; then
     continue
   fi
+  
+  # Calculate function data hash
+  function_hash=$(hash_function_data "$OUTPUT")
   
   # Create the new structure with function name as key
   if [[ $FIRST -eq 1 ]]; then
@@ -163,11 +258,13 @@ for plugin in "${PLUGINS[@]}"; do
   # Strip the outer braces from plugin output to get just the content
   PLUGIN_DATA="${OUTPUT:1:-1}"
   
-  # Add plugin data with function name as key and timestamp
+  # Add plugin data with function name as key, timestamps, and hashes
   JSON+="\"$function_name\": {"
   JSON+="\"data\": {$PLUGIN_DATA},"
   JSON+="\"collection_timestamp\": \"$start_time\","
-  JSON+="\"completion_timestamp\": \"$end_time\""
+  JSON+="\"completion_timestamp\": \"$end_time\","
+  JSON+="\"plugin_file_hash\": \"$plugin_hash\","
+  JSON+="\"function_data_hash\": \"$function_hash\""
   JSON+="}"
 done
 
@@ -178,7 +275,9 @@ JSON+="}"
 - **Function Name Extraction**: Advanced algorithm extracts meaningful function names from plugins
 - **Nested Structure**: Plugin data wrapped in function-named objects with metadata
 - **Timing Information**: Per-plugin collection and completion timestamps
-- **Collection Metadata**: Top-level metadata including plugin count and collection start time
+- **Collection Metadata**: Top-level metadata including plugin count, hashing status, and privilege info
+- **Data Integrity**: CRC32 hashes for plugin files and function outputs when enabled
+- **Privilege Support**: Optional sudo execution with graceful fallback
 - **Enhanced Validation**: Python-powered JSON validation with fallbacks
 - **Order Preservation**: Plugin execution order maintained in final JSON
 
