@@ -230,23 +230,6 @@ if [[ ! " $SUPPORTED_ARCHS " =~ " $ARCH " ]]; then
 fi
 
 # Check dependencies
-check_dependencies() {
-    local missing_deps=""
-    local optional_deps="ip ifconfig"
-    
-    # Check for optional dependencies
-    for dep in $optional_deps; do
-        if ! command -v "$dep" >/dev/null 2>&1; then
-            missing_deps="${missing_deps}$dep "
-        fi
-    done
-    
-    # Warn about missing dependencies but continue
-    if [[ -n "$missing_deps" ]]; then
-        echo "Warning: Missing optional dependencies for IP plugin: $missing_deps" >&2
-        echo "Network interface detection may use fallback methods" >&2
-    fi
-}
 
 check_dependencies
 
