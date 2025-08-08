@@ -433,30 +433,31 @@ impl PodmanManager {
 
     /// Parse a log line from Podman logs
     fn parse_log_line(&self, line: &str) -> Option<DeploymentLog> {
-        // Parse format: "2023-01-01T12:00:00.000000000Z log message"
-        if let Some(space_pos) = line.find(' ') {
-            let timestamp_str = &line[..space_pos];
-            let message = &line[space_pos + 1..];
-            
+        // Try to parse a timestamp at the start of the line (RFC3339)
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        // Find the first space, but don't assume it's always there
+        if let Some(space_pos) = trimmed.find(' ') {
+            let timestamp_str = &trimmed[..space_pos];
+            let message = &trimmed[space_pos + 1..];
             if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(timestamp_str) {
-                Some(DeploymentLog {
+                return Some(DeploymentLog {
                     timestamp: timestamp.with_timezone(&Utc),
                     level: LogLevel::Info, // Default to Info, could be enhanced
                     message: message.to_string(),
                     source: "container".to_string(),
-                })
-            } else {
-                // Fallback for lines without proper timestamp
-                Some(DeploymentLog {
-                    timestamp: Utc::now(),
-                    level: LogLevel::Info,
-                    message: line.to_string(),
-                    source: "container".to_string(),
-                })
+                });
             }
-        } else {
-            None
         }
+        // Fallback: treat the whole line as the message, use current time
+        Some(DeploymentLog {
+            timestamp: Utc::now(),
+            level: LogLevel::Info,
+            message: trimmed.to_string(),
+            source: "container".to_string(),
+        })
     }
 }
 
