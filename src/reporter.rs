@@ -392,7 +392,7 @@ impl TestReporter {
                     result.context.test_id,
                     result.success,
                     result.execution_time_ms,
-                    result.error_message.as_ref().unwrap_or(&"".to_string()).replace(",", ";")
+                    result.error_message.as_deref().unwrap_or("").replace(",", ";")
                 ));
             }
         }
