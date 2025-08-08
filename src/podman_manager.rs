@@ -212,7 +212,8 @@ impl PodmanManager {
                 .output()?;
                 
             if output.status.success() {
-                let status = String::from_utf8_lossy(&output.stdout).trim();
+                let status_string = String::from_utf8_lossy(&output.stdout);
+                let status = status_string.trim();
                 match status {
                     "running" => Ok(DeploymentStatus::Running),
                     "exited" => Ok(DeploymentStatus::Stopped),

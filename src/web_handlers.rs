@@ -2,7 +2,6 @@
 
 use crate::web_types::*;
 use crate::{GitHubApiClient, SystemProfiler, DeploymentProfileManager, PodmanManager};
-use crate::Result;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -84,12 +83,13 @@ pub fn create_router(state: AppState) -> Router {
 // Frontend Handlers
 
 /// Serve the main index page
-pub async fn index_handler() -> Html<&'static str> {
-    Html(include_str!("../templates/index.html"))
+pub async fn index_handler() -> Html<String> {
+    let html = include_str!("../templates/index.html").to_string();
+    Html(html)
 }
 
 /// Serve the dashboard page
-pub async fn dashboard_handler(State(state): State<AppState>) -> Result<Html<String>, (StatusCode, Json<ErrorResponse>)> {
+pub async fn dashboard_handler(State(state): State<AppState>) -> std::result::Result<Html<String>, (StatusCode, Json<ErrorResponse>)> {
     debug!("Serving dashboard page");
     
     // Get system profile
@@ -206,7 +206,7 @@ pub async fn dashboard_handler(State(state): State<AppState>) -> Result<Html<Str
 }
 
 /// Serve the search page
-pub async fn search_page_handler() -> Html<&'static str> {
+pub async fn search_page_handler() -> Html<String> {
     Html(r#"
 <!DOCTYPE html>
 <html>
@@ -343,11 +343,11 @@ pub async fn search_page_handler() -> Html<&'static str> {
     </script>
 </body>
 </html>
-"#)
+"#.to_string())
 }
 
 /// Serve the deployments page
-pub async fn deployments_page_handler() -> Html<&'static str> {
+pub async fn deployments_page_handler() -> Html<String> {
     Html(r#"
 <!DOCTYPE html>
 <html>
@@ -473,11 +473,11 @@ pub async fn deployments_page_handler() -> Html<&'static str> {
     </script>
 </body>
 </html>
-"#)
+"#.to_string())
 }
 
 /// Serve the profiles page
-pub async fn profiles_page_handler() -> Html<&'static str> {
+pub async fn profiles_page_handler() -> Html<String> {
     Html(r#"
 <!DOCTYPE html>
 <html>
@@ -611,11 +611,11 @@ pub async fn profiles_page_handler() -> Html<&'static str> {
     </script>
 </body>
 </html>
-"#)
+"#.to_string())
 }
 
 /// Serve the system page
-pub async fn system_page_handler() -> Html<&'static str> {
+pub async fn system_page_handler() -> Html<String> {
     Html(r#"
 <!DOCTYPE html>
 <html>
@@ -807,13 +807,13 @@ pub async fn system_page_handler() -> Html<&'static str> {
     </script>
 </body>
 </html>
-"#)
+"#.to_string())
 }
 
 // API Handlers
 
 /// Get current system profile
-pub async fn get_system_profile(State(state): State<AppState>) -> Result<Json<SystemProfile>, (StatusCode, Json<ErrorResponse>)> {
+pub async fn get_system_profile(State(state): State<AppState>) -> std::result::Result<Json<SystemProfile>, (StatusCode, Json<ErrorResponse>)> {
     let profile = state.system_profile.read().await;
     
     match profile.as_ref() {
@@ -829,7 +829,7 @@ pub async fn get_system_profile(State(state): State<AppState>) -> Result<Json<Sy
 }
 
 /// Generate new system profile
-pub async fn generate_system_profile(State(state): State<AppState>) -> Result<Json<SystemProfile>, (StatusCode, Json<ErrorResponse>)> {
+pub async fn generate_system_profile(State(state): State<AppState>) -> std::result::Result<Json<SystemProfile>, (StatusCode, Json<ErrorResponse>)> {
     info!("Generating new system profile");
     
     match state.system_profiler.generate_profile().await {
@@ -858,7 +858,7 @@ pub async fn generate_system_profile(State(state): State<AppState>) -> Result<Js
 pub async fn search_repositories(
     Query(params): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<SearchRepositoriesResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<SearchRepositoriesResponse>, (StatusCode, Json<ErrorResponse>)> {
     debug!("Searching repositories with query: {}", params.q);
     
     let request = SearchRepositoriesRequest {
@@ -889,7 +889,7 @@ pub async fn search_repositories(
 pub async fn get_repository(
     Path((owner, name)): Path<(String, String)>,
     State(state): State<AppState>,
-) -> Result<Json<GitHubRepository>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<GitHubRepository>, (StatusCode, Json<ErrorResponse>)> {
     match state.github_client.get_repository(&owner, &name).await {
         Ok(repository) => Ok(Json(repository)),
         Err(e) => {
@@ -909,7 +909,7 @@ pub async fn get_repository(
 pub async fn get_trending_repositories(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
-) -> Result<Json<Vec<GitHubRepository>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<GitHubRepository>>, (StatusCode, Json<ErrorResponse>)> {
     let language = params.get("language").cloned();
     let limit = params.get("limit")
         .and_then(|l| l.parse().ok())
@@ -935,7 +935,7 @@ pub async fn get_repositories_by_category(
     Path(category): Path<String>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
-) -> Result<Json<Vec<GitHubRepository>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<GitHubRepository>>, (StatusCode, Json<ErrorResponse>)> {
     let limit = params.get("limit")
         .and_then(|l| l.parse().ok())
         .unwrap_or(20);
@@ -965,7 +965,7 @@ pub async fn list_deployment_profiles(State(state): State<AppState>) -> Json<Vec
 pub async fn create_deployment_profile(
     State(state): State<AppState>,
     Json(request): Json<GenerateProfileRequest>,
-) -> Result<Json<GenerateProfileResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<GenerateProfileResponse>, (StatusCode, Json<ErrorResponse>)> {
     info!("Creating deployment profile for {}", request.repository.full_name);
     
     // Get system profile
@@ -1015,7 +1015,7 @@ pub async fn create_deployment_profile(
 pub async fn get_deployment_profile(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<Json<DeploymentProfile>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<DeploymentProfile>, (StatusCode, Json<ErrorResponse>)> {
     let profiles = state.profiles.read().await;
     
     match profiles.get(&id) {
@@ -1034,7 +1034,7 @@ pub async fn get_deployment_profile(
 pub async fn delete_deployment_profile(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let mut profiles = state.profiles.write().await;
     
     match profiles.remove(&id) {
@@ -1062,7 +1062,7 @@ pub async fn list_deployments(State(state): State<AppState>) -> Json<Vec<Deploym
 pub async fn create_deployment(
     State(state): State<AppState>,
     Json(request): Json<CreateDeploymentRequest>,
-) -> Result<Json<CreateDeploymentResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<CreateDeploymentResponse>, (StatusCode, Json<ErrorResponse>)> {
     info!("Creating deployment: {}", request.name);
     
     // Get profile
@@ -1108,7 +1108,7 @@ pub async fn create_deployment(
 pub async fn get_deployment(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<Json<DeploymentInstance>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<DeploymentInstance>, (StatusCode, Json<ErrorResponse>)> {
     let deployments = state.deployments.read().await;
     
     match deployments.get(&id) {
@@ -1127,7 +1127,7 @@ pub async fn get_deployment(
 pub async fn remove_deployment(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     // Get deployment
     let deployment = {
         let deployments = state.deployments.read().await;
@@ -1163,7 +1163,7 @@ pub async fn remove_deployment(
 pub async fn restart_deployment(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let deployment = {
         let deployments = state.deployments.read().await;
         match deployments.get(&id) {
@@ -1203,7 +1203,7 @@ pub async fn get_deployment_logs(
     Path(id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
-) -> Result<Json<Vec<DeploymentLog>>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<Vec<DeploymentLog>>, (StatusCode, Json<ErrorResponse>)> {
     let deployment = {
         let deployments = state.deployments.read().await;
         match deployments.get(&id) {
@@ -1243,7 +1243,7 @@ pub async fn get_deployment_logs(
 pub async fn get_deployment_status(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
-) -> Result<Json<DeploymentStatus>, (StatusCode, Json<ErrorResponse>)> {
+) -> std::result::Result<Json<DeploymentStatus>, (StatusCode, Json<ErrorResponse>)> {
     let deployment = {
         let deployments = state.deployments.read().await;
         match deployments.get(&id) {

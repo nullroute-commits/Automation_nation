@@ -34,12 +34,15 @@ impl GitHubApiClient {
         }
         
         // Build query parameters
-        let mut params = vec![
+        let per_page_str = request.per_page.unwrap_or(30).to_string();
+        let page_str = request.page.unwrap_or(1).to_string();
+        
+        let params = vec![
             ("q", query.as_str()),
             ("sort", request.sort.as_deref().unwrap_or("stars")),
             ("order", request.order.as_deref().unwrap_or("desc")),
-            ("per_page", &request.per_page.unwrap_or(30).to_string()),
-            ("page", &request.page.unwrap_or(1).to_string()),
+            ("per_page", &per_page_str),
+            ("page", &page_str),
         ];
 
         let url = format!("{}/search/repositories", self.base_url);
@@ -65,7 +68,7 @@ impl GitHubApiClient {
         
         let data: Value = response.json().await?;
         
-        let repositories = data["items"]
+        let repositories: Vec<GitHubRepository> = data["items"]
             .as_array()
             .unwrap_or(&vec![])
             .iter()
