@@ -2,7 +2,6 @@
 
 use crate::types::{PrivilegeLevel, ScriptOutput, TestContext, TestResult};
 use crate::Result;
-use chrono::Utc;
 use std::process::Command;
 use std::time::Instant;
 use tokio::time::timeout;

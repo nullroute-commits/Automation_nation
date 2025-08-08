@@ -2,12 +2,14 @@
 
 use crate::types::{ComparisonResult, DataDifference, DifferenceType, ScriptOutput, TestResult};
 use crate::Result;
-use std::collections::HashMap;
 
 /// Validates script outputs and performs comparisons
 pub struct OutputValidator;
 
 impl OutputValidator {
+    /// Minimum valid timestamp (2020-01-01 00:00:00 UTC)
+    const MIN_VALID_TIMESTAMP: i64 = 1577836800;
+    
     /// Validate that a script output is well-formed and contains expected data
     pub fn validate_output(output: &ScriptOutput) -> Result<Vec<String>> {
         let mut issues = Vec::new();
@@ -367,6 +369,7 @@ mod tests {
     use crate::types::*;
     use chrono::Utc;
     use serde_json::json;
+    use std::collections::HashMap;
 
     fn create_test_output() -> ScriptOutput {
         ScriptOutput {
