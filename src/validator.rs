@@ -41,11 +41,11 @@ impl OutputValidator {
                 issues.push(format!("Plugin '{}' has null data", plugin_name));
             }
 
-            if plugin_data.collection_timestamp.timestamp() <= 0 {
+            if plugin_data.collection_timestamp.timestamp() < 0 {
                 issues.push(format!("Plugin '{}' has invalid collection timestamp", plugin_name));
             }
 
-            if plugin_data.completion_timestamp.timestamp() <= 0 {
+            if plugin_data.completion_timestamp.timestamp() < 0 {
                 issues.push(format!("Plugin '{}' has invalid completion timestamp", plugin_name));
             }
 
