@@ -33,6 +33,22 @@ Thumbs.db
 # Test artifacts
 /test/tmp/
 test_output/
+test_results/
+privilege_test_results/
+privilege_results/
+arch_test_*/
+os_test_*/
+test_results_*/
+comprehensive_report/
+all_results/
 
 # Runtime directories
 .cache/
+
+# Rust build artifacts
+/target
+Cargo.lock
+
+# CI test suite specific
+*.csv
+!.github/workflows/*.yml
