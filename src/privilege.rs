@@ -117,7 +117,7 @@ impl PrivilegeManager {
     fn get_effective_uid() -> u32 {
         #[cfg(unix)]
         {
-            unsafe { libc::geteuid() }
+            Self::geteuid_safe()
         }
         #[cfg(not(unix))]
         {
