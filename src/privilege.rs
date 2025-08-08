@@ -113,6 +113,16 @@ impl PrivilegeManager {
             .unwrap_or_else(|_| "unknown".to_string())
     }
 
+    /// Safely get effective user ID
+    fn geteuid_safe() -> u32 {
+        #[cfg(unix)]
+        unsafe {
+            libc::geteuid()
+        }
+        #[cfg(not(unix))]
+        0
+    }
+
     /// Get the effective user ID
     fn get_effective_uid() -> u32 {
         #[cfg(unix)]
