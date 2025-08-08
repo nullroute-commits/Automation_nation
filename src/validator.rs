@@ -22,7 +22,7 @@ impl OutputValidator {
             issues.push("No plugins were executed".to_string());
         }
 
-        if output.collection_metadata.timestamp.timestamp() <= 0 {
+        if output.collection_metadata.timestamp.timestamp() < Self::MIN_VALID_TIMESTAMP {
             issues.push("Invalid collection timestamp".to_string());
         }
 
