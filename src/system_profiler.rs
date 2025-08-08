@@ -227,11 +227,38 @@ impl SystemProfiler {
                 disks.iter()
                     .filter_map(|disk| {
                         disk["size"].as_str().and_then(|size| {
-                            if size.ends_with('G') {
-                                size.trim_end_matches('G').parse::<u64>().ok()
+                            // Parse disk size with possible units: T, G, M, K
+                            let size = size.trim();
+                            if size.is_empty() { return None; }
+                            let (num_part, unit) = size
+                                .chars()
+                                .rev()
+                                .take_while(|c| c.is_alphabetic())
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect::<String>()
+                                .to_uppercase()
+                                .split_at(0);
+                            let unit = if size.chars().last().unwrap().is_alphabetic() {
+                                size.chars().last().unwrap().to_ascii_uppercase()
                             } else {
-                                None
-                            }
+                                'G' // Default to G if no unit
+                            };
+                            let num_str = if size.chars().last().unwrap().is_alphabetic() {
+                                &size[..size.len()-1]
+                            } else {
+                                size
+                            };
+                            let num = num_str.trim().parse::<f64>().ok()?;
+                            let gb = match unit {
+                                'T' => num * 1024.0,
+                                'G' => num,
+                                'M' => num / 1024.0,
+                                'K' => num / (1024.0 * 1024.0),
+                                _ => return None,
+                            };
+                            Some(gb.round() as u64)
                         })
                     })
                     .sum()
