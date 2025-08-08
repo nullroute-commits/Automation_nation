@@ -398,10 +398,21 @@ impl DeploymentProfileManager {
     }
 
     /// Generate health check configuration
-    fn generate_health_check(&self, _repository: &GitHubRepository) -> Option<HealthCheck> {
-        // Generate health check for web applications
+    fn generate_health_check(&self, repository: &GitHubRepository) -> Option<HealthCheck> {
+        // Attempt to get port and health check path from repository metadata, fallback to defaults
+        let port = repository
+            .exposed_port
+            .as_ref()
+            .map(|p| p.to_string())
+            .unwrap_or_else(|| "8080".to_string());
+        let path = repository
+            .health_check_path
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or("/health");
+        let url = format!("http://localhost:{}{}", port, path);
         Some(HealthCheck {
-            test: vec!["CMD".to_string(), "curl".to_string(), "-f".to_string(), "http://localhost:8080/health".to_string()],
+            test: vec!["CMD".to_string(), "curl".to_string(), "-f".to_string(), url],
             interval_seconds: 30,
             timeout_seconds: 10,
             retries: 3,
