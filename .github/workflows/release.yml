@@ -365,11 +365,9 @@ jobs:
         echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
         
     - name: Upload release artifacts
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release-binaries/all-checksums.sha256
-        asset_name: all-checksums.sha256
-        asset_content_type: text/plain
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "release-${{ needs.check-changes.outputs.release_version }}" \
+          release-binaries/all-checksums.sha256#all-checksums.sha256 \
+          --clobber
