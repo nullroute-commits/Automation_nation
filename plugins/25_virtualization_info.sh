@@ -134,11 +134,24 @@ get_virtualization_info() {
         # Check for Docker
         if command -v docker >/dev/null 2>&1; then
             local docker_version=$(docker --version 2>/dev/null | awk '{print $3}' | sed 's/,$//' || echo "unknown")
+            
+            # Detect Docker Compose availability and type
+            local compose_info=""
+            if command -v docker-compose >/dev/null 2>&1; then
+                local compose_version=$(docker-compose --version 2>/dev/null | awk '{print $3}' | sed 's/,$//' || echo "unknown")
+                compose_info="\"compose_type\":\"standalone\",\"compose_version\":\"$compose_version\""
+            elif docker compose version >/dev/null 2>&1; then
+                local compose_version=$(docker compose version 2>/dev/null | grep -o 'v[0-9][0-9.]*' | head -1 || echo "unknown")
+                compose_info="\"compose_type\":\"plugin\",\"compose_version\":\"$compose_version\""
+            else
+                compose_info="\"compose_type\":\"not_available\",\"compose_version\":\"none\""
+            fi
+            
             if [[ "$first_runtime" == "false" ]]; then
                 container_runtime+=","
             fi
             first_runtime=false
-            container_runtime+="{\"name\":\"Docker\",\"version\":\"$docker_version\",\"status\":\"installed\"}"
+            container_runtime+="{\"name\":\"Docker\",\"version\":\"$docker_version\",\"status\":\"installed\",$compose_info}"
         fi
         
         # Check for Podman
@@ -232,6 +245,93 @@ get_virtualization_info() {
         container_platform+="]"
     }
     
+    # Enhanced environment perspective detection for containerized deployments
+    detect_host_environment() {
+        local host_info="{"
+        local has_host_access="false"
+        local host_os_release=""
+        local host_kernel=""
+        local host_hostname=""
+        local host_architecture=""
+        local container_network_info=""
+        
+        # Check if we have access to host system information via mounted volumes
+        if [[ -n "${HOST_SYSTEM_ROOT}" ]] && [[ -d "${HOST_SYSTEM_ROOT}" ]]; then
+            has_host_access="true"
+            
+            # Read host OS information if available
+            if [[ -f "${HOST_SYSTEM_ROOT}/etc/os-release" ]]; then
+                host_os_release=$(grep '^PRETTY_NAME=' "${HOST_SYSTEM_ROOT}/etc/os-release" 2>/dev/null | cut -d'"' -f2 || echo "unknown")
+            fi
+            
+            # Read host kernel version if available
+            if [[ -f "${HOST_SYSTEM_ROOT}/proc/version" ]]; then
+                host_kernel=$(head -1 "${HOST_SYSTEM_ROOT}/proc/version" 2>/dev/null | awk '{print $3}' || echo "unknown")
+            fi
+            
+            # Read host hostname if available
+            if [[ -f "${HOST_SYSTEM_ROOT}/etc/hostname" ]]; then
+                host_hostname=$(cat "${HOST_SYSTEM_ROOT}/etc/hostname" 2>/dev/null || echo "unknown")
+            fi
+            
+            # Detect host architecture from uname if accessible
+            if [[ -f "${HOST_SYSTEM_ROOT}/proc/cpuinfo" ]]; then
+                host_architecture=$(grep '^processor' "${HOST_SYSTEM_ROOT}/proc/cpuinfo" | wc -l 2>/dev/null || echo "unknown")
+                if [[ "$host_architecture" != "unknown" ]]; then
+                    host_architecture="${host_architecture} cores"
+                fi
+            fi
+        fi
+        
+        # Detect container network configuration and external connectivity
+        container_network_info="["
+        local first_net=true
+        
+        # Get default gateway for external IP detection
+        local default_gateway=$(ip route show default 2>/dev/null | awk '/default/ {print $3}' | head -1 || echo "unknown")
+        local external_ip=""
+        
+        # Attempt to discover external IP through multiple methods
+        if [[ "$default_gateway" != "unknown" ]]; then
+            # Try to get external IP via HTTP requests with short timeouts
+            external_ip=$(curl -m 3 -s http://checkip.amazonaws.com 2>/dev/null || \
+                         curl -m 3 -s http://ipecho.net/plain 2>/dev/null || \
+                         curl -m 3 -s http://icanhazip.com 2>/dev/null || \
+                         echo "unknown")
+        fi
+        
+        # Container network interface analysis
+        for iface in $(ip link show 2>/dev/null | grep '^[0-9]' | cut -d':' -f2 | tr -d ' '); do
+            if [[ "$iface" != "lo" ]]; then
+                local iface_ip=$(ip addr show "$iface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | head -1 || echo "unknown")
+                local iface_mtu=$(ip link show "$iface" 2>/dev/null | grep 'mtu' | awk '{print $5}' || echo "unknown")
+                
+                if [[ "$first_net" == "false" ]]; then
+                    container_network_info+=","
+                fi
+                first_net=false
+                container_network_info+="{\"interface\":\"$iface\",\"ip\":\"$iface_ip\",\"mtu\":\"$iface_mtu\"}"
+            fi
+        done
+        
+        if [[ "$first_net" == "true" ]]; then
+            container_network_info+="{\"interface\":\"none\",\"ip\":\"unknown\",\"mtu\":\"unknown\"}"
+        fi
+        container_network_info+="]"
+        
+        host_info+="\"has_host_access\":$has_host_access,"
+        host_info+="\"host_os_release\":\"$(escape_json "$host_os_release")\","
+        host_info+="\"host_kernel\":\"$(escape_json "$host_kernel")\","
+        host_info+="\"host_hostname\":\"$(escape_json "$host_hostname")\","
+        host_info+="\"host_architecture\":\"$(escape_json "$host_architecture")\","
+        host_info+="\"default_gateway\":\"$(escape_json "$default_gateway")\","
+        host_info+="\"external_ip\":\"$(escape_json "$external_ip")\","
+        host_info+="\"container_network\":$container_network_info"
+        host_info+="}"
+        
+        echo "$host_info"
+    }
+
     # Collect deployment information
     collect_deployment_info() {
         deployment_info="{"
@@ -269,6 +369,7 @@ get_virtualization_info() {
     detect_container_runtime
     detect_container_platform
     collect_deployment_info
+    local host_environment=$(detect_host_environment)
     
     # Output JSON
     cat << EOF
@@ -279,6 +380,7 @@ get_virtualization_info() {
   "container_runtime": $container_runtime,
   "container_platform": $container_platform,
   "deployment_info": $deployment_info,
+  "host_environment": $host_environment,
   "architecture": "$(escape_json "$ARCH")"
 }
 EOF
