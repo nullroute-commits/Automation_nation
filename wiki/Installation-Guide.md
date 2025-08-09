@@ -168,8 +168,17 @@ sudo usermod -aG docker $USER
 #### macOS
 ```bash
 # Install Homebrew if not present
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# Download the Homebrew installation script
+curl -fsSLo install.sh https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
 
+# (Optional) Inspect or verify the script before running:
+# less install.sh
+# You can also check the SHA256 at https://docs.brew.sh/Installation#untar-anywhere
+
+# Run the installation script
+/bin/bash install.sh
+
+# For more details, see: https://brew.sh/
 # Install dependencies
 brew install git jq
 
