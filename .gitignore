@@ -47,7 +47,6 @@ all_results/
 
 # Rust build artifacts
 /target
-Cargo.lock
 
 # CI test suite specific
 *.csv

@@ -16,7 +16,8 @@ RUN useradd -m -u 1000 appuser
 WORKDIR /app
 
 # Copy dependency files first for better layer caching
-COPY Cargo.toml Cargo.lock ./
+# Removed Cargo.lock to allow build without a lockfile
+COPY Cargo.toml ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
@@ -39,9 +40,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     sqlite3 \
     bash \
-    # Container runtime tools (for runtime detection)
+    # Container runtime tools (for runtime detection) \
     podman \
-    # System tools needed by collect_info.sh
+    # System tools needed by collect_info.sh \
     procps \
     net-tools \
     iproute2 \
