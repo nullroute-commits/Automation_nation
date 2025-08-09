@@ -2,7 +2,7 @@
 
 use crate::web_types::*;
 use crate::Result;
-use log::{debug, info, warn, error};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

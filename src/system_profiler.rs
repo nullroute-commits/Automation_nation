@@ -403,11 +403,11 @@ impl SystemProfiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    
 
     #[test]
     fn test_system_profiler_creation() {
-        let profiler = SystemProfiler::new("./collect_info.sh".to_string());
+        let _profiler = SystemProfiler::new("./collect_info.sh".to_string());
         // We can't access private fields, so just verify construction succeeds
         assert!(true);
     }

@@ -214,7 +214,7 @@ impl ScriptExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Architecture, OperatingSystem};
+    use crate::types::Architecture;
     use tempfile::NamedTempFile;
     use std::io::Write;
 
