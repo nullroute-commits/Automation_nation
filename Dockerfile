@@ -1,5 +1,5 @@
 # Dockerfile for Automation Nation Web Application
-FROM rust:1.75-slim as builder
+FROM rust:1.80-slim AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
