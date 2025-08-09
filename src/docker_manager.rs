@@ -1,4 +1,37 @@
 //! Docker container management for deployment execution
+//! 
+//! This module provides comprehensive Docker container lifecycle management
+//! for the Automation Nation platform. It handles container deployment,
+//! monitoring, log collection, and cleanup operations.
+//! 
+//! ## Key Features
+//! - Container deployment from GitHub repositories
+//! - Real-time container monitoring and health checks
+//! - Integrated logging and metrics collection
+//! - Security optimization and resource management
+//! - Support for Docker and Docker Compose operations
+//! - Integration with Docker Swarm for production deployments
+//! 
+//! ## Usage Example
+//! ```rust
+//! use automation_nation::DockerManager;
+//! 
+//! let docker_manager = DockerManager::new();
+//! 
+//! // Check if Docker is available
+//! if docker_manager.check_availability().await? {
+//!     // Deploy a container from a deployment profile
+//!     let response = docker_manager.deploy(&profile, &request).await?;
+//!     println!("Deployed container: {}", response.deployment_id);
+//! }
+//! ```
+//! 
+//! ## Architecture Integration
+//! The DockerManager integrates with several platform components:
+//! - **DeploymentProfileManager**: Receives deployment configurations
+//! - **SystemProfiler**: Uses system information for optimization
+//! - **RBAC**: Enforces deployment permissions
+//! - **Monitoring**: Exports container metrics to Prometheus/Grafana
 
 use crate::web_types::*;
 use crate::Result;
@@ -9,13 +42,50 @@ use uuid::Uuid;
 use chrono::Utc;
 use serde_json;
 
-/// Manages Docker containers for deployments
+/// Docker container management interface
+/// 
+/// The DockerManager provides a high-level interface for managing Docker containers
+/// within the Automation Nation platform. It abstracts Docker CLI operations and
+/// provides safety mechanisms, logging, and integration with the platform's
+/// monitoring and security systems.
+/// 
+/// ## Lifecycle Management
+/// The manager handles the complete container lifecycle:
+/// 1. **Deployment**: Creates containers from deployment profiles
+/// 2. **Monitoring**: Tracks container health and resource usage
+/// 3. **Maintenance**: Handles updates, restarts, and scaling
+/// 4. **Cleanup**: Removes stopped containers and unused images
+/// 
+/// ## Security Features
+/// - Resource limits enforcement (CPU, memory, network)
+/// - Security context optimization (non-root users, read-only filesystems)
+/// - Network isolation and firewall integration
+/// - Secret management for sensitive data
+/// 
+/// ## Error Handling
+/// All operations return Result<T> with comprehensive error messages
+/// for debugging and audit logging purposes.
 pub struct DockerManager {
+    /// Docker command executable path
+    /// 
+    /// Defaults to "docker" but can be customized for non-standard installations
+    /// or when using alternative Docker implementations (e.g., Podman with Docker compatibility)
     docker_command: String,
 }
 
 impl DockerManager {
-    /// Create a new Docker manager
+    /// Create a new Docker manager instance
+    /// 
+    /// Initializes the Docker manager with default configuration.
+    /// The manager will use the "docker" command from the system PATH.
+    /// 
+    /// ## Returns
+    /// A new DockerManager instance ready for container operations
+    /// 
+    /// ## Example
+    /// ```rust
+    /// let docker_manager = DockerManager::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             docker_command: "docker".to_string(),
@@ -23,9 +93,40 @@ impl DockerManager {
     }
 
     /// Check if Docker is available and working
+    /// 
+    /// Performs a comprehensive check of Docker availability by executing
+    /// `docker --version` and validating the response. This method should
+    /// be called before attempting any container operations.
+    /// 
+    /// ## Returns
+    /// - `Ok(true)` if Docker is available and responds correctly
+    /// - `Ok(false)` if Docker is not available or not working
+    /// - `Err(...)` if there was an error executing the check
+    /// 
+    /// ## Error Conditions
+    /// - Docker executable not found in PATH
+    /// - Docker daemon not running
+    /// - Permission denied accessing Docker socket
+    /// - System resource constraints preventing execution
+    /// 
+    /// ## Logging
+    /// Success and failure conditions are logged at appropriate levels:
+    /// - INFO: Successful availability check with version information
+    /// - WARN: Docker not available or not responding
+    /// - DEBUG: Detailed execution information
+    /// 
+    /// ## Example
+    /// ```rust
+    /// match docker_manager.check_availability().await {
+    ///     Ok(true) => println!("Docker is ready"),
+    ///     Ok(false) => eprintln!("Docker is not available"),
+    ///     Err(e) => eprintln!("Error checking Docker: {}", e),
+    /// }
+    /// ```
     pub async fn check_availability(&self) -> Result<bool> {
-        debug!("Checking Docker availability");
+        debug!("Checking Docker availability using command: {}", self.docker_command);
         
+        // Execute docker --version command with timeout and error handling
         let output = Command::new(&self.docker_command)
             .args(["--version"])
             .stdout(Stdio::piped())
@@ -35,17 +136,63 @@ impl DockerManager {
         if output.status.success() {
             let version = String::from_utf8_lossy(&output.stdout);
             info!("Docker available: {}", version.trim());
+            debug!("Docker check completed successfully with exit code 0");
             Ok(true)
         } else {
-            warn!("Docker not available or not working");
+            let error = String::from_utf8_lossy(&output.stderr);
+            warn!("Docker not available or not working. Error: {}", error.trim());
+            debug!("Docker check failed with exit code: {:?}", output.status.code());
             Ok(false)
         }
     }
 
     /// Deploy a container based on deployment profile
+    /// 
+    /// Creates and starts a Docker container using the configuration specified
+    /// in the deployment profile. This method handles the complete deployment
+    /// process including image building, network setup, volume mounting,
+    /// and security configuration.
+    /// 
+    /// ## Parameters
+    /// - `profile`: Deployment profile containing container configuration
+    /// - `request`: Deployment request with user-specific parameters
+    /// 
+    /// ## Returns
+    /// - `CreateDeploymentResponse` with deployment details on success
+    /// - Error if deployment fails at any stage
+    /// 
+    /// ## Deployment Process
+    /// 1. **Validation**: Validate deployment profile and request parameters
+    /// 2. **Image Management**: Pull or build required container image
+    /// 3. **Network Setup**: Create or configure container networks
+    /// 4. **Volume Configuration**: Set up persistent storage volumes
+    /// 5. **Security Application**: Apply security contexts and resource limits
+    /// 6. **Container Creation**: Create container with all configurations
+    /// 7. **Service Registration**: Register container with monitoring systems
+    /// 8. **Health Verification**: Verify container starts successfully
+    /// 
+    /// ## Security Considerations
+    /// - Containers run with minimal privileges by default
+    /// - Resource limits are enforced to prevent resource exhaustion
+    /// - Network isolation is applied based on deployment requirements
+    /// - Secrets are mounted securely and not logged
+    /// 
+    /// ## Error Handling
+    /// If deployment fails at any stage, cleanup operations are performed
+    /// to prevent resource leaks. Failed deployments are logged for debugging.
+    /// 
+    /// ## Example
+    /// ```rust
+    /// let response = docker_manager.deploy(&profile, &request).await?;
+    /// println!("Container deployed with ID: {}", response.deployment_id);
+    /// println!("Container name: {}", response.container_name);
+    /// ```
     pub async fn deploy(&self, profile: &DeploymentProfile, request: &CreateDeploymentRequest) -> Result<CreateDeploymentResponse> {
-        info!("Deploying container for profile: {}", profile.name);
+        info!("Starting container deployment for profile: {} ({})", profile.name, profile.id);
+        debug!("Deployment request details - Profile ID: {}, Name: {}", 
+               request.profile_id, request.name);
         
+        // Generate unique identifiers for this deployment
         let deployment_id = Uuid::new_v4();
         let now = Utc::now();
         

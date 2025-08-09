@@ -114,6 +114,10 @@ pub mod docker_manager;      // Docker container orchestration and production de
 pub mod lxc_manager;         // LXC container orchestration and system virtualization
 pub mod container_runtime;   // Unified container runtime abstraction layer
 pub mod web_handlers;        // HTTP API route handlers for web interface
+pub mod rbac;                // Role-based access control and authentication system
+
+#[cfg(test)]
+pub mod web_test_suite;      // Comprehensive web application test suite
 
 // Re-export commonly used types and functions for convenient access
 pub use types::*;                    // Core type definitions and data structures

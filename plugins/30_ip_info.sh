@@ -268,12 +268,81 @@ EOF
     }
     
     local external_ipv4=$(get_external_ipv4)
+    
+    # Get deployment recommendations based on network configuration
+    get_deployment_recommendations() {
+        local recommendations="{"
+        local primary_interface=""
+        local primary_ipv4=""
+        local has_docker_interface=false
+        local has_podman_interface=false
+        
+        # Extract primary network interface and IP
+        if command -v ip >/dev/null 2>&1; then
+            local default_route=$(ip route show default 2>/dev/null | head -1)
+            if [[ -n "$default_route" ]]; then
+                primary_interface=$(echo "$default_route" | awk '/dev/ {print $5}')
+                if [[ -n "$primary_interface" ]]; then
+                    primary_ipv4=$(ip addr show "$primary_interface" 2>/dev/null | grep "inet " | awk '{print $2}' | cut -d'/' -f1 | head -1)
+                fi
+            fi
+        fi
+        
+        # Check for container network interfaces
+        if ip link show docker0 >/dev/null 2>&1; then
+            has_docker_interface=true
+        fi
+        
+        if ip link show podman0 >/dev/null 2>&1 || ls /run/user/*/podman/podman.sock >/dev/null 2>&1; then
+            has_podman_interface=true
+        fi
+        
+        # Generate recommendations
+        local external_ip_from_json=$(echo "$external_ipv4" | grep -o '"ip":"[^"]*"' | cut -d'"' -f4)
+        local recommended_external_ip="$external_ip_from_json"
+        
+        # If external IP detection failed, use primary interface IP
+        if [[ "$recommended_external_ip" == "unknown" ]] || [[ "$recommended_external_ip" == "behind-nat" ]]; then
+            if [[ -n "$primary_ipv4" ]]; then
+                recommended_external_ip="$primary_ipv4"
+            fi
+        fi
+        
+        recommendations+="\"recommended_external_ip\":\"$recommended_external_ip\","
+        recommendations+="\"primary_interface\":\"${primary_interface:-unknown}\","
+        recommendations+="\"primary_ipv4\":\"${primary_ipv4:-unknown}\","
+        recommendations+="\"docker_available\":$has_docker_interface,"
+        recommendations+="\"podman_available\":$has_podman_interface,"
+        
+        # Container port mapping recommendations
+        recommendations+="\"container_port_mappings\":{"
+        recommendations+="\"web_interface\":\"${recommended_external_ip}:3000\","
+        recommendations+="\"netbox\":\"${recommended_external_ip}:8080\","
+        recommendations+="\"prometheus\":\"${recommended_external_ip}:9090\","
+        recommendations+="\"grafana\":\"${recommended_external_ip}:3001\","
+        recommendations+="\"kibana\":\"${recommended_external_ip}:5601\""
+        recommendations+="},"
+        
+        # Internal service discovery recommendations  
+        recommendations+="\"internal_services\":{"
+        recommendations+="\"postgres\":\"postgres:5432\","
+        recommendations+="\"redis\":\"redis:6379\","
+        recommendations+="\"elasticsearch\":\"elasticsearch:9200\","
+        recommendations+="\"logstash\":\"logstash:5044\""
+        recommendations+="}"
+        
+        recommendations+="}"
+        echo "$recommendations"
+    }
+    
+    local deployment_recommendations=$(get_deployment_recommendations)
 
     # Output final JSON
     cat << EOF
 {
   "network_interfaces": $interfaces_data,
   "external_ipv4": $external_ipv4,
+  "deployment_recommendations": $deployment_recommendations,
   "architecture": "$ARCH"
 }
 EOF

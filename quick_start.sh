@@ -6,6 +6,20 @@ set -e
 echo "🚀 Automation Nation Quick Start"
 echo "================================"
 
+# Function to detect the correct Docker Compose command
+detect_docker_compose() {
+    if command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    else
+        echo ""
+    fi
+}
+
+# Get the correct Docker Compose command
+DOCKER_COMPOSE_CMD=$(detect_docker_compose)
+
 # Check if .env exists, if not copy from template
 if [ ! -f .env ]; then
     echo "📝 Creating .env file from template..."
@@ -29,18 +43,21 @@ case $choice in
     1)
         echo "🐳 Starting with Docker Compose..."
         
-        # Check if docker-compose is available
-        if ! command -v docker-compose &> /dev/null && ! command -v docker &> /dev/null; then
-            echo "❌ Docker and docker-compose are required"
+        # Check if Docker Compose is available
+        if [[ -z "$DOCKER_COMPOSE_CMD" ]]; then
+            echo "❌ Docker and Docker Compose are required"
+            echo "   Please install Docker first: https://docs.docker.com/get-docker/"
             exit 1
         fi
         
+        echo "📋 Using Docker Compose command: $DOCKER_COMPOSE_CMD"
+        
         # Build and start services
         echo "🔨 Building application..."
-        docker-compose build automation-nation-web
+        $DOCKER_COMPOSE_CMD build automation-nation-web
         
         echo "🚀 Starting all services..."
-        docker-compose up -d
+        $DOCKER_COMPOSE_CMD up -d
         
         echo "⏳ Waiting for services to be ready..."
         sleep 30
@@ -147,8 +164,8 @@ echo "   4. Deploy containers using the web interface"
 echo ""
 echo "🔍 To check status:"
 if [ "$choice" = "1" ]; then
-    echo "   docker-compose ps"
-    echo "   docker-compose logs -f automation-nation-web"
+    echo "   $DOCKER_COMPOSE_CMD ps"
+    echo "   $DOCKER_COMPOSE_CMD logs -f automation-nation-web"
 elif [ "$choice" = "2" ]; then
     echo "   docker ps"
     echo "   docker logs -f automation-nation"
@@ -162,7 +179,7 @@ fi
 echo ""
 echo "🛑 To stop:"
 if [ "$choice" = "1" ]; then
-    echo "   docker-compose down"
+    echo "   $DOCKER_COMPOSE_CMD down"
 elif [ "$choice" = "2" ]; then
     echo "   docker stop automation-nation && docker rm automation-nation"
 elif [ "$choice" = "3" ]; then
