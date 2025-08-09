@@ -550,7 +550,7 @@ mod tests {
 
     #[test]
     fn test_deployment_profile_manager_creation() {
-        let manager = DeploymentProfileManager::new("./collect_info.sh".to_string());
+        let _manager = DeploymentProfileManager::new("./collect_info.sh".to_string());
         // We can't access private fields, so just verify construction succeeds
         assert!(true);
     }

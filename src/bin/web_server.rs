@@ -297,7 +297,7 @@ mod tests {
     
     #[tokio::test]
     async fn test_github_client_creation() {
-        let client = GitHubApiClient::new(Some("test_token".to_string()));
+        let _client = GitHubApiClient::new(Some("test_token".to_string()));
         // Just verify it can be created without errors
         assert!(true);
     }

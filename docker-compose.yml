@@ -77,7 +77,15 @@ services:
 
   # NetBox for network infrastructure data store
   netbox:
-    image: netboxcommunity/netbox:latest
+    # Use official image by default, source build with BUILD_NETBOX_FROM_SOURCE=true
+    image: ${NETBOX_IMAGE:-netboxcommunity/netbox:latest}
+    build:
+      context: ${NETBOX_BUILD_CONTEXT:-./netbox-build}
+      dockerfile: ${NETBOX_DOCKERFILE:-Dockerfile.netbox}
+      args:
+        NETBOX_VERSION: ${NETBOX_VERSION:-v4.1.0}
+        ENABLE_PLUGINS: ${NETBOX_ENABLE_PLUGINS:-false}
+        PLUGIN_LIST: ${NETBOX_PLUGIN_LIST:-}
     container_name: automation-nation-netbox
     environment:
       CORS_ORIGIN_ALLOW_ALL: 'True'
@@ -91,10 +99,16 @@ services:
       SUPERUSER_NAME: admin
       SUPERUSER_EMAIL: admin@automation-nation.local
       SUPERUSER_PASSWORD: ${NETBOX_ADMIN_PASSWORD:-admin_password}
+      # Plugin configuration
+      PLUGINS_CONFIG: ${NETBOX_PLUGINS_CONFIG:-{}}
     ports:
       - "8080:8080"
     volumes:
       - netbox_media:/opt/netbox/media
+      - netbox_reports:/opt/netbox/netbox/reports
+      - netbox_scripts:/opt/netbox/netbox/scripts
+      # Plugin volume mounts (if plugins enabled)
+      - ${NETBOX_PLUGINS_DIR:-./netbox-plugins}:/opt/netbox/plugins:ro
     networks:
       - automation_network
     restart: unless-stopped
@@ -237,6 +251,10 @@ volumes:
   redis_data:
     driver: local
   netbox_media:
+    driver: local
+  netbox_reports:
+    driver: local
+  netbox_scripts:
     driver: local
   prometheus_data:
     driver: local

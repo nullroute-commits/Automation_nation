@@ -521,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resource_limit_conversion() {
-        let manager = LxcManager::new();
+        let _manager = LxcManager::new();
         
         // Test CPU shares to priority conversion logic
         let cpu_shares = 1024; // Standard Docker share
