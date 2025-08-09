@@ -34,7 +34,7 @@ Built-in metrics, logging, and monitoring integration from the ground up.
 src/bin/web_server.rs          // Main web server binary
 src/web_handlers.rs            // HTTP route handlers
 src/web_types.rs               // API data structures
-src/github_api.rs              // GitHub integration
+src/github_api.rs              // GitHub API integration and repository analysis
 ```
 
 #### Responsibilities
