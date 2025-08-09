@@ -236,6 +236,8 @@ impl GitHubApiClient {
             created_at,
             updated_at,
             default_branch,
+            exposed_port: None,  // Set to None as default, can be configured later
+            health_check_path: None,  // Set to None as default, can be configured later
         })
     }
 

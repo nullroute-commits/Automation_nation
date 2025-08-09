@@ -52,3 +52,35 @@ Cargo.lock
 # CI test suite specific
 *.csv
 !.github/workflows/*.yml
+
+# Container and deployment files
+.env
+*.pid
+*.sock
+
+# Database files
+*.db
+*.sqlite3
+
+# Volume and persistent data
+/data/
+/volumes/
+
+# Container runtime files
+/var/lib/lxc/*/
+/var/run/docker.sock
+/run/podman/podman.sock
+
+# Monitoring data
+/monitoring/data/
+/grafana-data/
+/prometheus-data/
+/elasticsearch-data/
+
+# Secrets and certificates
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+certs/

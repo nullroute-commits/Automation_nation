@@ -577,6 +577,8 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             default_branch: "main".to_string(),
+            exposed_port: Some(8080),
+            health_check_path: Some("/health".to_string()),
         };
         
         let requirements = manager.analyze_repository_requirements(&repository);
@@ -633,6 +635,8 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             default_branch: "main".to_string(),
+            exposed_port: Some(5000),
+            health_check_path: Some("/api/health".to_string()),
         };
         
         let image = manager.determine_base_image(&repository, &system_profile);
