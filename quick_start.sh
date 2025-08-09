@@ -54,6 +54,21 @@ case $choice in
         
         # Build and start services
         echo "🔨 Building application..."
+        
+        # Check if binaries exist, if not build them
+        if [ ! -f "target/release/web_server" ] || [ ! -f "target/release/ci_runner" ]; then
+            echo "📦 Building Rust binaries..."
+            if command -v cargo &> /dev/null; then
+                cargo build --release --bin web_server --bin ci_runner
+            else
+                echo "❌ Cargo not found. Please install Rust: https://rustup.rs/"
+                echo "   Or build the binaries manually and place them in target/release/"
+                exit 1
+            fi
+        else
+            echo "✅ Using existing binaries"
+        fi
+        
         $DOCKER_COMPOSE_CMD build automation-nation-web
         
         echo "🚀 Starting all services..."

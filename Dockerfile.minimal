@@ -1,7 +1,4 @@
-# Dockerfile for Automation Nation Web Application
-# This uses a two-step process to avoid SSL issues in build environments
-
-# Build stage - this should be run on the host first with: cargo build --release
+# Minimal Dockerfile that uses pre-built binaries
 FROM ubuntu:24.04
 
 # Install runtime dependencies
@@ -29,7 +26,7 @@ RUN useradd -m -u 1001 appuser
 RUN mkdir -p /app/bin /app/plugins /app/templates /app/data && \
     chown -R appuser:appuser /app
 
-# Copy pre-built binaries (build these first with: cargo build --release)
+# Copy pre-built binaries (to be provided by host build)
 COPY target/release/web_server /app/bin/
 COPY target/release/ci_runner /app/bin/
 

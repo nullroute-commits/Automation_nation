@@ -1,11 +1,9 @@
 services:
-  # Main web application
-  # NOTE: Run 'cargo build --release' before building this image
-  # Or use './build_local.sh' for automated local build
+  # Main web application (using minimal build)
   automation-nation-web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.minimal
     container_name: automation-nation-web
     ports:
       - "3000:3000"
