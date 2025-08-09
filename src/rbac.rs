@@ -677,6 +677,20 @@ impl RbacManager {
             None => entries,
         }
     }
+    
+    /// Add a test user (for testing purposes only)
+    #[cfg(test)]
+    pub fn add_test_user(&mut self, user: User) {
+        self.users.insert(user.id, user);
+    }
+    
+    /// Get first admin user ID (for testing purposes only)
+    #[cfg(test)]
+    pub fn get_admin_user_id(&self) -> Option<Uuid> {
+        self.users.values()
+            .find(|u| u.roles.contains(&"admin".to_string()))
+            .map(|u| u.id)
+    }
 }
 
 #[cfg(test)]
