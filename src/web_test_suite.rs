@@ -131,11 +131,11 @@ impl WebTestSuite {
         let server = TestServer::new(app).unwrap();
         
         // Authenticate users and get tokens
-        let admin_session = rbac_manager.authenticate("admin", "admin123", "127.0.0.1", "test-agent").unwrap();
+        let admin_session = rbac_manager.authenticate(TEST_ADMIN_USERNAME, TEST_ADMIN_PASSWORD, "127.0.0.1", "test-agent").unwrap();
         let user_session = rbac_manager.authenticate("test_developer", "dev_password", "127.0.0.1", "test-agent").unwrap();
         
         let mut test_users = HashMap::new();
-        test_users.insert("admin".to_string(), ("admin".to_string(), "admin123".to_string()));
+        test_users.insert(TEST_ADMIN_USERNAME.to_string(), (TEST_ADMIN_USERNAME.to_string(), TEST_ADMIN_PASSWORD.to_string()));
         test_users.insert("developer".to_string(), ("test_developer".to_string(), "dev_password".to_string()));
         test_users.insert("viewer".to_string(), ("test_viewer".to_string(), "viewer_password".to_string()));
         
