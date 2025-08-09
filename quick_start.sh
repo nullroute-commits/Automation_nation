@@ -29,18 +29,22 @@ case $choice in
     1)
         echo "🐳 Starting with Docker Compose..."
         
-        # Check if docker-compose is available
-        if ! command -v docker-compose &> /dev/null && ! command -v docker &> /dev/null; then
-            echo "❌ Docker and docker-compose are required"
+        # Determine compose command (support V1 and V2)
+        if command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_CMD="docker-compose"
+        elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+            COMPOSE_CMD="docker compose"
+        else
+            echo "❌ Docker Compose (docker-compose or docker compose) is required"
             exit 1
         fi
         
         # Build and start services
         echo "🔨 Building application..."
-        docker-compose build automation-nation-web
+        $COMPOSE_CMD build automation-nation-web
         
         echo "🚀 Starting all services..."
-        docker-compose up -d
+        $COMPOSE_CMD up -d
         
         echo "⏳ Waiting for services to be ready..."
         sleep 30
@@ -58,7 +62,7 @@ case $choice in
         echo "   NetBox:  admin / (check .env file)"
         echo "   Grafana: admin / (check .env file)"
         ;;
-        
+    
     2)
         echo "🐳 Starting with Docker..."
         
@@ -147,8 +151,8 @@ echo "   4. Deploy containers using the web interface"
 echo ""
 echo "🔍 To check status:"
 if [ "$choice" = "1" ]; then
-    echo "   docker-compose ps"
-    echo "   docker-compose logs -f automation-nation-web"
+    echo "   ${COMPOSE_CMD:-docker-compose} ps"
+    echo "   ${COMPOSE_CMD:-docker-compose} logs -f automation-nation-web"
 elif [ "$choice" = "2" ]; then
     echo "   docker ps"
     echo "   docker logs -f automation-nation"
@@ -162,7 +166,7 @@ fi
 echo ""
 echo "🛑 To stop:"
 if [ "$choice" = "1" ]; then
-    echo "   docker-compose down"
+    echo "   ${COMPOSE_CMD:-docker-compose} down"
 elif [ "$choice" = "2" ]; then
     echo "   docker stop automation-nation && docker rm automation-nation"
 elif [ "$choice" = "3" ]; then
