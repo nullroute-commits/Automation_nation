@@ -16,8 +16,7 @@ RUN useradd -m -u 1000 appuser
 WORKDIR /app
 
 # Copy dependency files first for better layer caching
-# Removed Cargo.lock to allow build without a lockfile
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
