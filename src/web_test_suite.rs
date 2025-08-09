@@ -69,7 +69,11 @@ impl WebTestSuite {
     /// Initialize the web test suite with test server and data
     pub async fn new() -> Self {
         // Create test RBAC manager
-        let mut rbac_manager = RbacManager::new("test_secret_key".to_string());
+        // Generate a random 32-byte secret key for testing
+        let mut key_bytes = [0u8; 32];
+        OsRng.fill_bytes(&mut key_bytes);
+        let test_secret_key = base64::encode(key_bytes);
+        let mut rbac_manager = RbacManager::new(test_secret_key);
         
         // Get admin user ID
         let admin_id = rbac_manager.get_admin_user_id().unwrap();
