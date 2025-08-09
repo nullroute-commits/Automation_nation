@@ -349,15 +349,20 @@ jobs:
         echo "✅ Created release tag: release-$RELEASE_VERSION"
         
     - name: Create GitHub Release
-      uses: actions/create-release@v1
+      id: create_release
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: release-${{ needs.check-changes.outputs.release_version }}
-        release_name: "Automation Nation Release ${{ needs.check-changes.outputs.release_version }}"
-        body_path: RELEASE_NOTES.md
-        draft: false
-        prerelease: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "release-${{ needs.check-changes.outputs.release_version }}" \
+          --title "Automation Nation Release ${{ needs.check-changes.outputs.release_version }}" \
+          --notes-file RELEASE_NOTES.md \
+          --target "$GITHUB_SHA" \
+          --verify-tag \
+          --latest
+        
+        # Get the upload_url for the created release and set as output
+        UPLOAD_URL=$(gh api repos/${{ github.repository }}/releases/tags/release-${{ needs.check-changes.outputs.release_version }} --jq '.upload_url')
+        echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
         
     - name: Upload release artifacts
       uses: actions/upload-release-asset@v1
