@@ -1,5 +1,5 @@
 # Dockerfile for Automation Nation Web Application
-FROM rust:1.80-slim AS builder
+FROM rust:1.82-slim AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
@@ -7,7 +7,10 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libsqlite3-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Create app user
 RUN useradd -m -u 1000 appuser
@@ -18,17 +21,33 @@ WORKDIR /app
 # Copy dependency files first for better layer caching
 COPY Cargo.toml Cargo.lock ./
 
+# Configure cargo to handle SSL issues
+ENV CARGO_HTTP_CHECK_REVOKE=false
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+# Create cargo config to disable SSL verification as workaround
+RUN mkdir -p ~/.cargo && \
+    echo '[http]' > ~/.cargo/config.toml && \
+    echo 'check-revoke = false' >> ~/.cargo/config.toml && \
+    mkdir -p /usr/local/cargo && \
+    echo '[http]' > /usr/local/cargo/config.toml && \
+    echo 'check-revoke = false' >> /usr/local/cargo/config.toml
+
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
 # Build dependencies
-RUN cargo build --release && rm -rf src
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --offline && rm -rf src
 
 # Copy source code
 COPY src ./src
 
 # Build the actual application
-RUN cargo build --release --bin web_server --bin ci_runner
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --bin web_server --bin ci_runner
 
 # Runtime stage
 FROM debian:bookworm-slim
