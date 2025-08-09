@@ -230,16 +230,7 @@ impl SystemProfiler {
                             // Parse disk size with possible units: T, G, M, K
                             let size = size.trim();
                             if size.is_empty() { return None; }
-                            let (num_part, unit) = size
-                                .chars()
-                                .rev()
-                                .take_while(|c| c.is_alphabetic())
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>()
-                                .to_uppercase()
-                                .split_at(0);
+                            
                             let unit = if size.chars().last().unwrap().is_alphabetic() {
                                 size.chars().last().unwrap().to_ascii_uppercase()
                             } else {

@@ -25,6 +25,8 @@ pub struct GitHubRepository {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub default_branch: String,
+    pub exposed_port: Option<u16>,
+    pub health_check_path: Option<String>,
 }
 
 /// GitHub license information
