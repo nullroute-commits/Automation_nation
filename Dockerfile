@@ -1,5 +1,6 @@
 # Dockerfile for Automation Nation Web Application
-FROM rust:1.75-slim as builder
+# Updated Rust toolchain to 1.89 to support Cargo.lock v4
+FROM rust:1.89-slim as builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
