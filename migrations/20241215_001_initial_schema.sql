@@ -117,6 +117,19 @@ CREATE TABLE deployments (
     deployed_by UUID REFERENCES users(id)
 );
 
+-- Password reset tokens table
+CREATE TABLE password_reset_tokens (
+    token_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    token_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    ip_address TEXT
+);
+
 -- Audit log table for security tracking
 CREATE TABLE audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -148,6 +161,9 @@ CREATE INDEX idx_deployments_runtime_type ON deployments(runtime_type);
 CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
 CREATE INDEX idx_audit_log_action ON audit_log(action);
 CREATE INDEX idx_audit_log_created_at ON audit_log(created_at);
+CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_token_hash ON password_reset_tokens(token_hash);
+CREATE INDEX idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
 
 -- Insert default roles
 INSERT INTO roles (name, description, permissions) VALUES 
