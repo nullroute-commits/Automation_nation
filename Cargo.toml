@@ -40,6 +40,9 @@ config = "0.14"
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
 # RBAC dependencies
 bcrypt = "0.15"
+# Additional dependencies for tests
+rand = "0.8"
+base64 = "0.22"
 
 [dev-dependencies]
 tokio-test = "0.4"

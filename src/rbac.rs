@@ -234,6 +234,7 @@ pub struct RbacManager {
     /// Audit log storage (in production, this would be persisted)
     audit_log: Vec<AuditLogEntry>,
     /// JWT secret for token signing
+    #[allow(dead_code)]
     jwt_secret: String,
     /// Default session duration
     session_duration: Duration,
