@@ -361,7 +361,7 @@ impl PasswordResetManager {
                     attempts,
                     ip_address
                 FROM password_reset_tokens
-                WHERE token_hash = $1 AND used = false AND expires_at > NOW()
+                WHERE token_hash = $1 AND used = 0 AND expires_at > datetime('now')
                 LIMIT 1
             "#,
             token_hash
@@ -379,7 +379,7 @@ impl PasswordResetManager {
         
         // Mark as used in database
         let token_hash = self.hash_token(token)?;
-        sqlx::query("UPDATE password_reset_tokens SET used = true WHERE token_hash = $1")
+        sqlx::query("UPDATE password_reset_tokens SET used = 1 WHERE token_hash = $1")
             .bind(token_hash)
             .execute(self.db_manager.pool())
             .await

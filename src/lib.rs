@@ -164,7 +164,9 @@ pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordRes
 pub use certificate_manager::{                               // Certificate management
     CertificateManager, Certificate, KeyPair, CertificateRequest, 
     RenewalRequest, ValidationResult, CryptoAlgorithm, SecurityLevel,
-    CertificateConfig, CertificateStatus, CertificateType
+    CertificateConfig, CertificateStatus, CertificateType,
+    AlgorithmCompliance, LegacyProtocolConfig, TlsConfig, CaConfig,
+    TlsVersion, CipherSuite, SecurityPolicy, SecurityAuditReport,
 };
 pub use dashboard_manager::{                              // Dashboard management
     DashboardManager, Dashboard, DashboardPanel, DashboardTemplate,

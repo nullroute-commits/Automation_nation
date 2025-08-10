@@ -18,6 +18,19 @@ use std::path::PathBuf;
 use uuid::Uuid;
 use base64::{Engine as _, engine::general_purpose};
 
+/// Algorithm compliance levels for security standards
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AlgorithmCompliance {
+    /// Deprecated - should not be used
+    Deprecated,
+    /// Standard security level - acceptable for most use cases
+    Standard,
+    /// High security level - recommended for sensitive applications
+    HighSecurity,
+    /// Post-quantum resistant - future-proof algorithms
+    PostQuantumResistant,
+}
+
 /// Supported cryptographic algorithms for certificate generation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CryptoAlgorithm {
@@ -55,11 +68,40 @@ impl CryptoAlgorithm {
     }
 
     /// Check if algorithm is considered secure as of 2025
+    /// Based on NIST and industry security standards
     pub fn is_secure(&self) -> bool {
         match self {
+            // RSA: Minimum 2048 bits required (NIST SP 800-57 Part 1)
             Self::Rsa { key_size } => *key_size >= 2048,
+            // ECDSA: All P-curves are secure (FIPS 186-5)
             Self::EcdsaP256 | Self::EcdsaP384 | Self::EcdsaP521 => true,
+            // Modern elliptic curve algorithms (RFC 8032, RFC 7748)
             Self::Ed25519 | Self::X25519 => true,
+        }
+    }
+
+    /// Check if algorithm should be deprecated soon (post-quantum considerations)
+    pub fn is_post_quantum_resistant(&self) -> bool {
+        // Note: Current algorithms are NOT post-quantum resistant
+        // This method is prepared for future PQC algorithm support
+        false
+    }
+
+    /// Get algorithm compliance status for various standards
+    pub fn compliance_status(&self) -> AlgorithmCompliance {
+        match self {
+            Self::Rsa { key_size } => {
+                if *key_size >= 4096 {
+                    AlgorithmCompliance::HighSecurity
+                } else if *key_size >= 2048 {
+                    AlgorithmCompliance::Standard
+                } else {
+                    AlgorithmCompliance::Deprecated
+                }
+            }
+            Self::EcdsaP256 => AlgorithmCompliance::Standard,
+            Self::EcdsaP384 | Self::EcdsaP521 => AlgorithmCompliance::HighSecurity,
+            Self::Ed25519 | Self::X25519 => AlgorithmCompliance::HighSecurity,
         }
     }
 
@@ -339,6 +381,46 @@ pub enum ValidationCategory {
     NameConstraints,
 }
 
+/// Security policy summary
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityPolicy {
+    /// Only secure protocols are allowed
+    pub secure_protocols_only: bool,
+    /// List of allowed cryptographic algorithms
+    pub allowed_algorithms: Vec<CryptoAlgorithm>,
+    /// Minimum security level requirement
+    pub minimum_security_level: SecurityLevel,
+    /// Whether any legacy protocols are enabled
+    pub legacy_protocols_enabled: bool,
+    /// Minimum TLS version allowed
+    pub tls_min_version: TlsVersion,
+    /// Perfect forward secrecy enabled
+    pub perfect_forward_secrecy: bool,
+    /// Ready for post-quantum cryptography
+    pub post_quantum_ready: bool,
+}
+
+/// Security audit report
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityAuditReport {
+    /// Total number of certificates
+    pub total_certificates: usize,
+    /// Number of certificates using secure algorithms
+    pub secure_certificates: usize,
+    /// Number of certificates using insecure algorithms
+    pub insecure_certificates: usize,
+    /// Number of certificates using deprecated algorithms
+    pub deprecated_algorithms: usize,
+    /// Number of certificates expiring soon
+    pub expiring_certificates: usize,
+    /// Number of revoked certificates
+    pub revoked_certificates: usize,
+    /// List of identified security issues
+    pub security_issues: Vec<String>,
+    /// Compliance summary by standard
+    pub compliance_summary: HashMap<String, bool>,
+}
+
 /// Certificate Manager - Main interface for certificate operations
 pub struct CertificateManager {
     /// Base directory for certificate storage
@@ -351,6 +433,122 @@ pub struct CertificateManager {
     crl_entries: Vec<CRLEntry>,
     /// Configuration
     config: CertificateConfig,
+}
+
+/// Legacy protocol configuration (admin-controlled for backward compatibility)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LegacyProtocolConfig {
+    /// Allow TLS 1.0 (highly discouraged)
+    pub allow_tls_1_0: bool,
+    /// Allow TLS 1.1 (discouraged)
+    pub allow_tls_1_1: bool,
+    /// Allow RSA keys smaller than 2048 bits
+    pub allow_weak_rsa: bool,
+    /// Allow MD5 signatures (never recommended)
+    pub allow_md5: bool,
+    /// Allow SHA-1 signatures (deprecated)
+    pub allow_sha1: bool,
+    /// Admin justification for enabling legacy protocols
+    pub admin_justification: Option<String>,
+    /// Expiration date for legacy protocol allowance
+    pub legacy_expires_at: Option<DateTime<Utc>>,
+}
+
+impl Default for LegacyProtocolConfig {
+    fn default() -> Self {
+        Self {
+            allow_tls_1_0: false,
+            allow_tls_1_1: false,
+            allow_weak_rsa: false,
+            allow_md5: false,
+            allow_sha1: false,
+            admin_justification: None,
+            legacy_expires_at: None,
+        }
+    }
+}
+
+/// TLS/SSL configuration settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TlsConfig {
+    /// Minimum TLS version (default: TLS 1.2)
+    pub min_tls_version: TlsVersion,
+    /// Preferred cipher suites (ordered by preference)
+    pub cipher_suites: Vec<CipherSuite>,
+    /// Enable perfect forward secrecy
+    pub perfect_forward_secrecy: bool,
+    /// Enable OCSP stapling
+    pub ocsp_stapling: bool,
+    /// Certificate transparency logging
+    pub ct_logging: bool,
+}
+
+impl Default for TlsConfig {
+    fn default() -> Self {
+        Self {
+            min_tls_version: TlsVersion::Tls12,
+            cipher_suites: vec![
+                CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+                CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+                CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+            ],
+            perfect_forward_secrecy: true,
+            ocsp_stapling: true,
+            ct_logging: true,
+        }
+    }
+}
+
+/// Certificate Authority configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CaConfig {
+    /// Root CA certificate lifetime (years)
+    pub root_ca_lifetime_years: u32,
+    /// Intermediate CA certificate lifetime (years)  
+    pub intermediate_ca_lifetime_years: u32,
+    /// Maximum certificate chain depth
+    pub max_chain_depth: u32,
+    /// Enable certificate revocation list (CRL)
+    pub enable_crl: bool,
+    /// CRL distribution points
+    pub crl_distribution_points: Vec<String>,
+    /// OCSP responder URLs
+    pub ocsp_responder_urls: Vec<String>,
+}
+
+impl Default for CaConfig {
+    fn default() -> Self {
+        Self {
+            root_ca_lifetime_years: 20,
+            intermediate_ca_lifetime_years: 10,
+            max_chain_depth: 3,
+            enable_crl: true,
+            crl_distribution_points: vec![],
+            ocsp_responder_urls: vec![],
+        }
+    }
+}
+
+/// TLS protocol versions
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TlsVersion {
+    Tls10,  // Deprecated
+    Tls11,  // Deprecated
+    Tls12,  // Current standard
+    Tls13,  // Preferred
+}
+
+/// Cipher suites (simplified list of secure options)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(non_camel_case_types)]
+pub enum CipherSuite {
+    TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+    TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+    TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 }
 
 /// Certificate manager configuration
@@ -374,6 +572,12 @@ pub struct CertificateConfig {
     pub allowed_algorithms: Vec<CryptoAlgorithm>,
     /// Admin can enable insecure protocols for legacy compatibility
     pub admin_allow_insecure: bool,
+    /// Legacy protocol settings (admin controlled)
+    pub legacy_protocols: LegacyProtocolConfig,
+    /// TLS/SSL configuration settings
+    pub tls_config: TlsConfig,
+    /// Certificate Authority settings
+    pub ca_config: CaConfig,
 }
 
 impl Default for CertificateConfig {
@@ -388,6 +592,9 @@ impl Default for CertificateConfig {
             validation_logging: true,
             allowed_algorithms: CryptoAlgorithm::recommended_for_security_level(SecurityLevel::Standard),
             admin_allow_insecure: false,
+            legacy_protocols: LegacyProtocolConfig::default(),
+            tls_config: TlsConfig::default(),
+            ca_config: CaConfig::default(),
         }
     }
 }
@@ -877,9 +1084,20 @@ impl CertificateManager {
     }
 
     fn validate_certificate_request(&self, request: &CertificateRequest) -> Result<()> {
-        // Validate algorithm
+        // Validate algorithm security
         if !request.algorithm.is_secure() && !self.config.admin_allow_insecure {
-            return Err(anyhow!("Requested algorithm is not secure"));
+            return Err(anyhow!("Requested algorithm is not secure and admin has not allowed insecure protocols"));
+        }
+
+        // Check algorithm compliance
+        match request.algorithm.compliance_status() {
+            AlgorithmCompliance::Deprecated => {
+                if !self.config.legacy_protocols.allow_weak_rsa && 
+                   matches!(request.algorithm, CryptoAlgorithm::Rsa { key_size } if key_size < 2048) {
+                    return Err(anyhow!("RSA keys smaller than 2048 bits are not allowed"));
+                }
+            }
+            _ => {} // Standard and HighSecurity are always allowed
         }
 
         // Validate subject
@@ -892,8 +1110,138 @@ impl CertificateManager {
             return Err(anyhow!("Validity period must be greater than 0"));
         }
 
+        // Check against maximum allowed validity based on certificate type
+        let max_validity = match request.cert_type {
+            CertificateType::RootCA => self.config.ca_config.root_ca_lifetime_years * 365,
+            CertificateType::IntermediateCA => self.config.ca_config.intermediate_ca_lifetime_years * 365,
+            _ => self.config.default_validity_days * 2, // Max 2x default for end-entity certs
+        };
+
+        if request.validity_days > max_validity {
+            return Err(anyhow!(
+                "Validity period {} days exceeds maximum allowed {} days for certificate type {:?}",
+                request.validity_days, max_validity, request.cert_type
+            ));
+        }
+
         // Additional validation logic...
         Ok(())
+    }
+
+    /// Admin method to configure legacy protocol settings
+    /// This should only be called by administrators with proper justification
+    pub async fn configure_legacy_protocols(
+        &mut self,
+        legacy_config: LegacyProtocolConfig,
+        admin_user: &str,
+    ) -> Result<()> {
+        // Log security configuration change
+        log::warn!(
+            "Admin {} is configuring legacy protocol settings: {:?}",
+            admin_user, legacy_config
+        );
+
+        // Validate justification is provided for any enabled legacy protocols
+        if (legacy_config.allow_tls_1_0 || 
+            legacy_config.allow_tls_1_1 || 
+            legacy_config.allow_weak_rsa ||
+            legacy_config.allow_md5 ||
+            legacy_config.allow_sha1) && 
+           legacy_config.admin_justification.is_none() {
+            return Err(anyhow!("Admin justification required for enabling legacy protocols"));
+        }
+
+        // Check if legacy allowance has expired
+        if let Some(expires_at) = legacy_config.legacy_expires_at {
+            if expires_at < Utc::now() {
+                return Err(anyhow!("Legacy protocol allowance has expired"));
+            }
+        }
+
+        self.config.legacy_protocols = legacy_config;
+        Ok(())
+    }
+
+    /// Get current security policy summary
+    pub fn get_security_policy(&self) -> SecurityPolicy {
+        SecurityPolicy {
+            secure_protocols_only: !self.config.admin_allow_insecure,
+            allowed_algorithms: self.config.allowed_algorithms.clone(),
+            minimum_security_level: self.config.minimum_security_level.clone(),
+            legacy_protocols_enabled: self.config.legacy_protocols.allow_tls_1_0 ||
+                                    self.config.legacy_protocols.allow_tls_1_1 ||
+                                    self.config.legacy_protocols.allow_weak_rsa,
+            tls_min_version: self.config.tls_config.min_tls_version.clone(),
+            perfect_forward_secrecy: self.config.tls_config.perfect_forward_secrecy,
+            post_quantum_ready: false, // Will be true when PQC algorithms are added
+        }
+    }
+
+    /// Admin method to update TLS configuration
+    pub async fn update_tls_config(
+        &mut self,
+        tls_config: TlsConfig,
+        admin_user: &str,
+    ) -> Result<()> {
+        log::info!("Admin {} updating TLS configuration", admin_user);
+        
+        // Validate TLS configuration
+        if matches!(tls_config.min_tls_version, TlsVersion::Tls10 | TlsVersion::Tls11) &&
+           !self.config.legacy_protocols.allow_tls_1_0 && 
+           !self.config.legacy_protocols.allow_tls_1_1 {
+            return Err(anyhow!("TLS 1.0/1.1 not allowed without legacy protocol configuration"));
+        }
+
+        self.config.tls_config = tls_config;
+        Ok(())
+    }
+
+    /// Get certificate security audit report
+    pub async fn generate_security_audit(&self) -> SecurityAuditReport {
+        let mut report = SecurityAuditReport {
+            total_certificates: self.certificates.len(),
+            secure_certificates: 0,
+            insecure_certificates: 0,
+            deprecated_algorithms: 0,
+            expiring_certificates: 0,
+            revoked_certificates: 0,
+            security_issues: Vec::new(),
+            compliance_summary: HashMap::new(),
+        };
+
+        let now = Utc::now();
+        
+        for certificate in self.certificates.values() {
+            // Check security status
+            if let Some(key_pair) = self.key_pairs.get(&certificate.public_key_id) {
+                if key_pair.algorithm.is_secure() {
+                    report.secure_certificates += 1;
+                } else {
+                    report.insecure_certificates += 1;
+                    report.security_issues.push(format!(
+                        "Certificate {} uses insecure algorithm {:?}",
+                        certificate.id, key_pair.algorithm
+                    ));
+                }
+
+                // Check for deprecated algorithms
+                if matches!(key_pair.algorithm.compliance_status(), AlgorithmCompliance::Deprecated) {
+                    report.deprecated_algorithms += 1;
+                }
+            }
+
+            // Check expiration
+            if certificate.not_after <= now + Duration::days(self.config.renewal_warning_days as i64) {
+                report.expiring_certificates += 1;
+            }
+
+            // Check revocation status
+            if certificate.status == CertificateStatus::Revoked {
+                report.revoked_certificates += 1;
+            }
+        }
+
+        report
     }
 
     fn get_issuer_subject(&self, request: &CertificateRequest) -> Result<CertificateSubject> {
@@ -1182,5 +1530,207 @@ mod tests {
         
         let maximum = CryptoAlgorithm::recommended_for_security_level(SecurityLevel::Maximum);
         assert!(!maximum.is_empty());
+    }
+
+    #[test]
+    fn test_algorithm_compliance() {
+        // Test RSA compliance
+        assert_eq!(CryptoAlgorithm::Rsa { key_size: 4096 }.compliance_status(), AlgorithmCompliance::HighSecurity);
+        assert_eq!(CryptoAlgorithm::Rsa { key_size: 2048 }.compliance_status(), AlgorithmCompliance::Standard);
+        assert_eq!(CryptoAlgorithm::Rsa { key_size: 1024 }.compliance_status(), AlgorithmCompliance::Deprecated);
+        
+        // Test ECDSA compliance
+        assert_eq!(CryptoAlgorithm::EcdsaP256.compliance_status(), AlgorithmCompliance::Standard);
+        assert_eq!(CryptoAlgorithm::EcdsaP384.compliance_status(), AlgorithmCompliance::HighSecurity);
+        assert_eq!(CryptoAlgorithm::EcdsaP521.compliance_status(), AlgorithmCompliance::HighSecurity);
+        
+        // Test modern algorithms
+        assert_eq!(CryptoAlgorithm::Ed25519.compliance_status(), AlgorithmCompliance::HighSecurity);
+        assert_eq!(CryptoAlgorithm::X25519.compliance_status(), AlgorithmCompliance::HighSecurity);
+    }
+
+    #[test]
+    fn test_post_quantum_resistance() {
+        // Current algorithms are not post-quantum resistant
+        assert!(!CryptoAlgorithm::EcdsaP256.is_post_quantum_resistant());
+        assert!(!CryptoAlgorithm::Rsa { key_size: 4096 }.is_post_quantum_resistant());
+        assert!(!CryptoAlgorithm::Ed25519.is_post_quantum_resistant());
+    }
+
+    #[tokio::test]
+    async fn test_legacy_protocol_configuration() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+
+        let mut manager = CertificateManager::new(config).await.unwrap();
+        
+        // Test configuring legacy protocols with justification
+        let legacy_config = LegacyProtocolConfig {
+            allow_tls_1_1: true,
+            admin_justification: Some("Testing legacy system compatibility".to_string()),
+            legacy_expires_at: Some(Utc::now() + Duration::days(30)),
+            ..Default::default()
+        };
+
+        let result = manager.configure_legacy_protocols(legacy_config, "test_admin").await;
+        assert!(result.is_ok());
+        assert!(manager.config.legacy_protocols.allow_tls_1_1);
+    }
+
+    #[tokio::test]
+    async fn test_legacy_protocol_validation_failure() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+
+        let mut manager = CertificateManager::new(config).await.unwrap();
+        
+        // Test configuring legacy protocols without justification (should fail)
+        let legacy_config = LegacyProtocolConfig {
+            allow_tls_1_0: true,
+            admin_justification: None,
+            ..Default::default()
+        };
+
+        let result = manager.configure_legacy_protocols(legacy_config, "test_admin").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("justification required"));
+    }
+
+    #[tokio::test]
+    async fn test_security_policy_management() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+
+        let manager = CertificateManager::new(config).await.unwrap();
+        
+        let policy = manager.get_security_policy();
+        assert!(policy.secure_protocols_only);
+        assert!(!policy.legacy_protocols_enabled);
+        assert_eq!(policy.tls_min_version, TlsVersion::Tls12);
+        assert!(policy.perfect_forward_secrecy);
+        assert!(!policy.post_quantum_ready);
+    }
+
+    #[tokio::test]
+    async fn test_tls_configuration() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+
+        let mut manager = CertificateManager::new(config).await.unwrap();
+        
+        // Test updating TLS configuration
+        let tls_config = TlsConfig {
+            min_tls_version: TlsVersion::Tls13,
+            cipher_suites: vec![CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384],
+            perfect_forward_secrecy: true,
+            ocsp_stapling: true,
+            ct_logging: true,
+        };
+
+        let result = manager.update_tls_config(tls_config, "test_admin").await;
+        assert!(result.is_ok());
+        assert_eq!(manager.config.tls_config.min_tls_version, TlsVersion::Tls13);
+    }
+
+    #[tokio::test]
+    async fn test_security_audit_report() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+
+        let mut manager = CertificateManager::new(config).await.unwrap();
+        
+        // Generate a certificate for testing
+        let request = CertificateRequest {
+            subject: CertificateSubject {
+                common_name: "test.example.com".to_string(),
+                organization: None,
+                organizational_unit: None,
+                country: None,
+                state: None,
+                locality: None,
+                email: None,
+            },
+            cert_type: CertificateType::ServerCert,
+            algorithm: CryptoAlgorithm::EcdsaP256,
+            extensions: CertificateExtensions {
+                subject_alt_names: vec![],
+                key_usage: vec![],
+                extended_key_usage: vec![],
+                is_ca: false,
+                path_length: None,
+                certificate_policies: vec![],
+            },
+            validity_days: 365,
+            issuer_cert_id: None,
+            metadata: HashMap::new(),
+        };
+
+        let _cert_id = manager.generate_certificate(request).await.unwrap();
+        
+        // Generate audit report
+        let audit = manager.generate_security_audit().await;
+        assert_eq!(audit.total_certificates, 1);
+        assert_eq!(audit.secure_certificates, 1);
+        assert_eq!(audit.insecure_certificates, 0);
+    }
+
+    #[tokio::test]
+    async fn test_enhanced_certificate_validation() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = CertificateConfig {
+            storage_directory: temp_dir.path().to_path_buf(),
+            ca_config: CaConfig {
+                root_ca_lifetime_years: 10,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut manager = CertificateManager::new(config).await.unwrap();
+        
+        // Test certificate request with excessive validity period
+        let request = CertificateRequest {
+            subject: CertificateSubject {
+                common_name: "test.example.com".to_string(),
+                organization: None,
+                organizational_unit: None,
+                country: None,
+                state: None,
+                locality: None,
+                email: None,
+            },
+            cert_type: CertificateType::ServerCert,
+            algorithm: CryptoAlgorithm::EcdsaP256,
+            extensions: CertificateExtensions {
+                subject_alt_names: vec![],
+                key_usage: vec![],
+                extended_key_usage: vec![],
+                is_ca: false,
+                path_length: None,
+                certificate_policies: vec![],
+            },
+            validity_days: 3000, // Excessive validity period
+            issuer_cert_id: None,
+            metadata: HashMap::new(),
+        };
+
+        let result = manager.generate_certificate(request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("exceeds maximum allowed"));
     }
 }
