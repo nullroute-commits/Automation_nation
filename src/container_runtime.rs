@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use crate::podman_manager::PodmanManager;
 use crate::docker_manager::DockerManager;
 use crate::lxc_manager::LxcManager;
+use crate::kubernetes_manager::KubernetesManager;
 
 /// Supported container runtime types
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -22,6 +23,8 @@ pub enum RuntimeType {
     Lxc,
     #[serde(rename = "containerd")]
     Containerd,
+    #[serde(rename = "kubernetes")]
+    Kubernetes,
 }
 
 impl std::fmt::Display for RuntimeType {
@@ -31,6 +34,7 @@ impl std::fmt::Display for RuntimeType {
             RuntimeType::Docker => write!(f, "docker"),
             RuntimeType::Lxc => write!(f, "lxc"),
             RuntimeType::Containerd => write!(f, "containerd"),
+            RuntimeType::Kubernetes => write!(f, "kubernetes"),
         }
     }
 }
@@ -38,22 +42,25 @@ impl std::fmt::Display for RuntimeType {
 /// Runtime availability information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeInfo {
-    pub runtime_type: RuntimeType,
+    pub runtime_type: String,
     pub available: bool,
-    pub version: Option<String>,
-    pub error: Option<String>,
+    pub version: String,
+    pub capabilities: RuntimeCapabilities,
 }
 
 /// Container runtime capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeCapabilities {
-    pub supports_rootless: bool,
-    pub supports_pods: bool,
+    pub supports_networking: bool,
     pub supports_volumes: bool,
-    pub supports_networks: bool,
-    pub supports_healthchecks: bool,
     pub supports_resource_limits: bool,
-    pub native_security_features: Vec<String>,
+    pub supports_health_checks: bool,
+    pub supports_rolling_updates: bool,
+    pub supports_load_balancing: bool,
+    pub supports_service_discovery: bool,
+    pub supports_secrets_management: bool,
+    pub max_cpu_cores: Option<u32>,
+    pub max_memory_gb: Option<u32>,
 }
 
 /// Unified container runtime manager
@@ -61,6 +68,7 @@ pub struct ContainerRuntimeManager {
     podman_manager: PodmanManager,
     docker_manager: DockerManager,
     lxc_manager: LxcManager,
+    kubernetes_manager: KubernetesManager,
     available_runtimes: HashMap<RuntimeType, RuntimeInfo>,
 }
 
@@ -71,6 +79,7 @@ impl ContainerRuntimeManager {
             podman_manager: PodmanManager::new(),
             docker_manager: DockerManager::new(),
             lxc_manager: LxcManager::new(),
+            kubernetes_manager: KubernetesManager::new(),
             available_runtimes: HashMap::new(),
         };
         
@@ -84,68 +93,97 @@ impl ContainerRuntimeManager {
         info!("Detecting available container runtimes...");
         
         // Check Podman
-        let podman_info = match self.podman_manager.check_availability().await {
-            Ok(available) => RuntimeInfo {
-                runtime_type: RuntimeType::Podman,
+        if let Ok(available) = self.podman_manager.check_availability().await {
+            let info = RuntimeInfo {
+                runtime_type: "podman".to_string(),
                 available,
-                version: if available { Some("detected".to_string()) } else { None },
-                error: None,
-            },
-            Err(e) => RuntimeInfo {
-                runtime_type: RuntimeType::Podman,
-                available: false,
-                version: None,
-                error: Some(e.to_string()),
-            },
-        };
-        self.available_runtimes.insert(RuntimeType::Podman, podman_info);
+                version: "detected".to_string(),
+                capabilities: RuntimeCapabilities {
+                    supports_networking: true,
+                    supports_volumes: true,
+                    supports_resource_limits: true,
+                    supports_health_checks: true,
+                    supports_rolling_updates: false,
+                    supports_load_balancing: false,
+                    supports_service_discovery: false,
+                    supports_secrets_management: true,
+                    max_cpu_cores: Some(64),
+                    max_memory_gb: Some(256),
+                },
+            };
+            self.available_runtimes.insert(RuntimeType::Podman, info);
+        }
 
         // Check Docker
-        let docker_info = match self.docker_manager.check_availability().await {
-            Ok(available) => RuntimeInfo {
-                runtime_type: RuntimeType::Docker,
+        if let Ok(available) = self.docker_manager.check_availability().await {
+            let info = RuntimeInfo {
+                runtime_type: "docker".to_string(),
                 available,
-                version: if available { Some("detected".to_string()) } else { None },
-                error: None,
-            },
-            Err(e) => RuntimeInfo {
-                runtime_type: RuntimeType::Docker,
-                available: false,
-                version: None,
-                error: Some(e.to_string()),
-            },
-        };
-        self.available_runtimes.insert(RuntimeType::Docker, docker_info);
+                version: "detected".to_string(),
+                capabilities: RuntimeCapabilities {
+                    supports_networking: true,
+                    supports_volumes: true,
+                    supports_resource_limits: true,
+                    supports_health_checks: true,
+                    supports_rolling_updates: false,
+                    supports_load_balancing: false,
+                    supports_service_discovery: false,
+                    supports_secrets_management: true,
+                    max_cpu_cores: Some(64),
+                    max_memory_gb: Some(256),
+                },
+            };
+            self.available_runtimes.insert(RuntimeType::Docker, info);
+        }
 
         // Check LXC
-        let lxc_info = match self.lxc_manager.check_availability().await {
-            Ok(available) => RuntimeInfo {
-                runtime_type: RuntimeType::Lxc,
+        if let Ok(available) = self.lxc_manager.check_availability().await {
+            let info = RuntimeInfo {
+                runtime_type: "lxc".to_string(),
                 available,
-                version: if available { Some("detected".to_string()) } else { None },
-                error: None,
-            },
-            Err(e) => RuntimeInfo {
-                runtime_type: RuntimeType::Lxc,
-                available: false,
-                version: None,
-                error: Some(e.to_string()),
-            },
-        };
-        self.available_runtimes.insert(RuntimeType::Lxc, lxc_info);
+                version: "detected".to_string(),
+                capabilities: RuntimeCapabilities {
+                    supports_networking: true,
+                    supports_volumes: true,
+                    supports_resource_limits: true,
+                    supports_health_checks: false,
+                    supports_rolling_updates: false,
+                    supports_load_balancing: false,
+                    supports_service_discovery: false,
+                    supports_secrets_management: false,
+                    max_cpu_cores: Some(32),
+                    max_memory_gb: Some(128),
+                },
+            };
+            self.available_runtimes.insert(RuntimeType::Lxc, info);
+        }
 
-        // Containerd would go here when implemented
-        self.available_runtimes.insert(RuntimeType::Containerd, RuntimeInfo {
-            runtime_type: RuntimeType::Containerd,
-            available: false,
-            version: None,
-            error: Some("Not yet implemented".to_string()),
-        });
+        // Check Kubernetes
+        if let Ok(available) = self.kubernetes_manager.check_availability().await {
+            let k8s_info = self.kubernetes_manager.get_runtime_info().await.unwrap_or_else(|_| {
+                RuntimeInfo {
+                    runtime_type: "kubernetes".to_string(),
+                    available: false,
+                    version: "unknown".to_string(),
+                    capabilities: RuntimeCapabilities {
+                        supports_networking: false,
+                        supports_volumes: false,
+                        supports_resource_limits: false,
+                        supports_health_checks: false,
+                        supports_rolling_updates: false,
+                        supports_load_balancing: false,
+                        supports_service_discovery: false,
+                        supports_secrets_management: false,
+                        max_cpu_cores: None,
+                        max_memory_gb: None,
+                    },
+                }
+            });
+            self.available_runtimes.insert(RuntimeType::Kubernetes, k8s_info);
+        }
 
-        let available_count = self.available_runtimes.values()
-            .filter(|info| info.available)
-            .count();
-        info!("Detected {} available container runtimes", available_count);
+        info!("Runtime detection complete. Found {} available runtimes", 
+              self.available_runtimes.len());
     }
 
     /// Get information about all detected runtimes
@@ -155,16 +193,14 @@ impl ContainerRuntimeManager {
 
     /// Get available runtime types
     pub fn get_available_runtimes(&self) -> Vec<RuntimeType> {
-        self.available_runtimes.values()
-            .filter(|info| info.available)
-            .map(|info| info.runtime_type.clone())
-            .collect()
+        self.available_runtimes.keys().cloned().collect()
     }
 
     /// Get the preferred runtime (first available in priority order)
     pub fn get_preferred_runtime(&self) -> Option<RuntimeType> {
-        // Priority order: Podman > Docker > LXC > Containerd
+        // Priority order: Kubernetes > Podman > Docker > LXC > Containerd
         let priority_order = vec![
+            RuntimeType::Kubernetes,
             RuntimeType::Podman,
             RuntimeType::Docker,
             RuntimeType::Lxc,

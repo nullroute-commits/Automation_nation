@@ -19,6 +19,48 @@ pub struct ApiResponse<T> {
     pub error: Option<String>,
 }
 
+impl<T> ApiResponse<T> {
+    /// Create a successful response with data
+    pub fn success(data: T) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            message: None,
+            error: None,
+        }
+    }
+
+    /// Create a successful response with data and message
+    pub fn success_with_message(data: T, message: String) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            message: Some(message),
+            error: None,
+        }
+    }
+
+    /// Create an error response
+    pub fn error(error: String) -> Self {
+        Self {
+            success: false,
+            data: None,
+            message: None,
+            error: Some(error),
+        }
+    }
+
+    /// Create an error response with message
+    pub fn error_with_message(error: String, message: String) -> Self {
+        Self {
+            success: false,
+            data: None,
+            message: Some(message),
+            error: Some(error),
+        }
+    }
+}
+
 /// API error types
 #[derive(Debug)]
 pub enum ApiError {

@@ -18,7 +18,8 @@ use crate::{
         CertificateManager, CertificateRequest, RenewalRequest, ValidationResult,
         CryptoAlgorithm, CertificateConfig, CertificateStatus, 
         CertificateType, CertificateFilter, ExportFormat, ImportFormat,
-        RevocationReason, Certificate, KeyPair,
+        RevocationReason, Certificate, KeyPair, SecurityLevel,
+        LegacyProtocolConfig, TlsConfig, SecurityPolicy, SecurityAuditReport,
     },
     web_types::{ApiError, ApiResponse},
 };
@@ -56,6 +57,15 @@ pub fn create_certificate_routes() -> Router<CertificateAppState> {
         .route("/api/certificates/config", get(get_certificate_config))
         .route("/api/certificates/config", put(update_certificate_config))
         .route("/api/certificates/algorithms", get(get_supported_algorithms))
+        
+        // Administrative endpoints (require admin role)
+        .route("/api/admin/certificates/security-policy", get(get_security_policy))
+        .route("/api/admin/certificates/security-policy", put(update_security_policy))
+        .route("/api/admin/certificates/legacy-protocols", get(get_legacy_protocols))
+        .route("/api/admin/certificates/legacy-protocols", put(configure_legacy_protocols))
+        .route("/api/admin/certificates/tls-config", get(get_tls_config))
+        .route("/api/admin/certificates/tls-config", put(update_tls_config))
+        .route("/api/admin/certificates/audit", get(get_security_audit))
         
         // Certificate validation and health
         .route("/api/certificates/health", get(certificate_system_health))
@@ -725,4 +735,111 @@ fn convert_extensions_request(request: CertificateExtensionsRequest) -> crate::c
         path_length: request.path_length,
         certificate_policies: request.certificate_policies.unwrap_or_default(),
     }
+}
+
+/// Get current security policy (Admin only)
+pub async fn get_security_policy(
+    State(state): State<CertificateAppState>,
+) -> Result<Json<ApiResponse<SecurityPolicy>>, ApiError> {
+    let cert_manager = state.cert_manager.read().await;
+    let policy = cert_manager.get_security_policy();
+    Ok(Json(ApiResponse::success(policy)))
+}
+
+/// Update security policy (Admin only)
+#[derive(Debug, Deserialize)]
+pub struct UpdateSecurityPolicyRequest {
+    pub secure_protocols_only: Option<bool>,
+    pub minimum_security_level: Option<SecurityLevel>,
+    pub allowed_algorithms: Option<Vec<CryptoAlgorithm>>,
+}
+
+pub async fn update_security_policy(
+    State(state): State<CertificateAppState>,
+    Json(request): Json<UpdateSecurityPolicyRequest>,
+) -> Result<Json<ApiResponse<SecurityPolicy>>, ApiError> {
+    let mut cert_manager = state.cert_manager.write().await;
+    
+    // Update configuration based on request
+    if let Some(secure_only) = request.secure_protocols_only {
+        cert_manager.config.admin_allow_insecure = !secure_only;
+    }
+    if let Some(min_level) = request.minimum_security_level {
+        cert_manager.config.minimum_security_level = min_level;
+    }
+    if let Some(algorithms) = request.allowed_algorithms {
+        cert_manager.config.allowed_algorithms = algorithms;
+    }
+    
+    let policy = cert_manager.get_security_policy();
+    Ok(Json(ApiResponse::success(policy)))
+}
+
+/// Get legacy protocol configuration (Admin only)
+pub async fn get_legacy_protocols(
+    State(state): State<CertificateAppState>,
+) -> Result<Json<ApiResponse<LegacyProtocolConfig>>, ApiError> {
+    let cert_manager = state.cert_manager.read().await;
+    let legacy_config = cert_manager.config.legacy_protocols.clone();
+    Ok(Json(ApiResponse::success(legacy_config)))
+}
+
+/// Configure legacy protocols (Admin only)
+#[derive(Debug, Deserialize)]
+pub struct ConfigureLegacyProtocolsRequest {
+    pub legacy_config: LegacyProtocolConfig,
+    pub admin_user: String,
+}
+
+pub async fn configure_legacy_protocols(
+    State(state): State<CertificateAppState>,
+    Json(request): Json<ConfigureLegacyProtocolsRequest>,
+) -> Result<Json<ApiResponse<LegacyProtocolConfig>>, ApiError> {
+    let mut cert_manager = state.cert_manager.write().await;
+    
+    cert_manager.configure_legacy_protocols(request.legacy_config, &request.admin_user)
+        .await
+        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    
+    let legacy_config = cert_manager.config.legacy_protocols.clone();
+    Ok(Json(ApiResponse::success(legacy_config)))
+}
+
+/// Get TLS configuration (Admin only)
+pub async fn get_tls_config(
+    State(state): State<CertificateAppState>,
+) -> Result<Json<ApiResponse<TlsConfig>>, ApiError> {
+    let cert_manager = state.cert_manager.read().await;
+    let tls_config = cert_manager.config.tls_config.clone();
+    Ok(Json(ApiResponse::success(tls_config)))
+}
+
+/// Update TLS configuration (Admin only)
+#[derive(Debug, Deserialize)]
+pub struct UpdateTlsConfigRequest {
+    pub tls_config: TlsConfig,
+    pub admin_user: String,
+}
+
+pub async fn update_tls_config(
+    State(state): State<CertificateAppState>,
+    Json(request): Json<UpdateTlsConfigRequest>,
+) -> Result<Json<ApiResponse<TlsConfig>>, ApiError> {
+    let mut cert_manager = state.cert_manager.write().await;
+    
+    cert_manager.update_tls_config(request.tls_config, &request.admin_user)
+        .await
+        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    
+    let tls_config = cert_manager.config.tls_config.clone();
+    Ok(Json(ApiResponse::success(tls_config)))
+}
+
+/// Get security audit report (Admin only)
+pub async fn get_security_audit(
+    State(state): State<CertificateAppState>,
+) -> Result<Json<ApiResponse<SecurityAuditReport>>, ApiError> {
+    let cert_manager = state.cert_manager.read().await;
+    let audit_report = cert_manager.generate_security_audit().await;
+    Ok(Json(ApiResponse::success(audit_report)))
 }

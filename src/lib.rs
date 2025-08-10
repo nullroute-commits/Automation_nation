@@ -112,6 +112,7 @@ pub mod deployment_profiles; // Container deployment profile management and opti
 pub mod podman_manager;      // Podman container orchestration and rootless management
 pub mod docker_manager;      // Docker container orchestration and production deployment
 pub mod lxc_manager;         // LXC container orchestration and system virtualization
+pub mod kubernetes_manager;  // Kubernetes container orchestration and cloud-native deployment
 pub mod container_runtime;   // Unified container runtime abstraction layer
 pub mod web_handlers;        // HTTP API route handlers for web interface
 pub mod rbac;                // Role-based access control and authentication system
@@ -124,6 +125,9 @@ pub mod certificate_manager; // Cryptographic certificate management system
 pub mod certificate_api;     // Certificate management REST API
 pub mod dashboard_manager;    // Custom dashboard management system
 pub mod dashboard_api;        // Dashboard management REST API
+pub mod plugin_marketplace;   // Plugin marketplace and management system
+pub mod plugin_marketplace_api; // Plugin marketplace REST API
+pub mod performance_optimizer; // Performance optimization and caching system
 pub mod comprehensive_test_suite; // Comprehensive test framework
 pub mod precompiled_builder;    // Precompiled build system
 
@@ -151,6 +155,11 @@ pub use deployment_profiles::DeploymentProfileManager; // Deployment profile man
 pub use podman_manager::PodmanManager;              // Podman container management
 pub use docker_manager::DockerManager;              // Docker container management
 pub use lxc_manager::LxcManager;                    // LXC container management
+pub use kubernetes_manager::{                       // Kubernetes container management
+    KubernetesManager, KubernetesConfig, KubernetesDeploymentRequest,
+    KubernetesDeploymentStatus, KubernetesResources, IngressConfig,
+    ServiceConfig, HealthCheckConfig,
+};
 pub use container_runtime::{                        // Container runtime abstraction
     ContainerRuntimeManager,    // Runtime detection and management
     RuntimeType,               // Container runtime type enumeration
@@ -164,11 +173,23 @@ pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordRes
 pub use certificate_manager::{                               // Certificate management
     CertificateManager, Certificate, KeyPair, CertificateRequest, 
     RenewalRequest, ValidationResult, CryptoAlgorithm, SecurityLevel,
-    CertificateConfig, CertificateStatus, CertificateType
+    CertificateConfig, CertificateStatus, CertificateType,
+    AlgorithmCompliance, LegacyProtocolConfig, TlsConfig, CaConfig,
+    TlsVersion, CipherSuite, SecurityPolicy, SecurityAuditReport,
 };
 pub use dashboard_manager::{                              // Dashboard management
     DashboardManager, Dashboard, DashboardPanel, DashboardTemplate,
     PanelType, DataSource, DashboardVisibility, TimeRange, PanelData
+};
+pub use plugin_marketplace::{                           // Plugin marketplace
+    PluginMarketplace, PluginInfo, InstalledPlugin, PluginCategory,
+    PluginSearchCriteria, PluginSearchResults, PluginInstallRequest,
+    MarketplaceConfig, PluginStatus, PluginSortOrder,
+};
+pub use performance_optimizer::{                     // Performance optimization
+    PerformanceOptimizer, CacheConfig, PerformanceMetrics,
+    ResponseTimeMetrics, CacheMetrics, DatabaseMetrics,
+    SystemMetrics, EndpointMetrics, CacheStats,
 };
 pub use comprehensive_test_suite::{ComprehensiveTestSuite, TestConfig, TestResults}; // Comprehensive testing
 pub use precompiled_builder::{PrecompiledBuilder, BuildConfig, TargetArch, BuildArtifact}; // Precompiled builds

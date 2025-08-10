@@ -16,15 +16,15 @@ use bcrypt;
 /// Password reset token information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasswordResetToken {
-    pub token_id: Uuid,
-    pub user_id: Uuid,
+    pub token_id: String,
+    pub user_id: String,
     pub email: String,
     pub token_hash: String,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
-    pub used: bool,
-    pub attempts: u32,
-    pub ip_address: String,
+    pub created_at: String,
+    pub expires_at: String,
+    pub used: i64,
+    pub attempts: i64,
+    pub ip_address: Option<String>,
 }
 
 /// Password reset request information
@@ -361,7 +361,7 @@ impl PasswordResetManager {
                     attempts,
                     ip_address
                 FROM password_reset_tokens
-                WHERE token_hash = $1 AND used = false AND expires_at > NOW()
+                WHERE token_hash = $1 AND used = 0 AND expires_at > datetime('now')
                 LIMIT 1
             "#,
             token_hash
@@ -379,7 +379,7 @@ impl PasswordResetManager {
         
         // Mark as used in database
         let token_hash = self.hash_token(token)?;
-        sqlx::query("UPDATE password_reset_tokens SET used = true WHERE token_hash = $1")
+        sqlx::query("UPDATE password_reset_tokens SET used = 1 WHERE token_hash = $1")
             .bind(token_hash)
             .execute(self.db_manager.pool())
             .await
