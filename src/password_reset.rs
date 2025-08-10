@@ -346,35 +346,30 @@ impl PasswordResetManager {
     
     /// Get token from database
     async fn get_token_from_database(&self, token: &str) -> Result<Option<PasswordResetToken>> {
-        // Hash the provided token to match the stored hash
         let token_hash = self.hash_token(token)?;
-        let row = sqlx::query!(
+        let row = sqlx::query_as!(
+            PasswordResetToken,
             r#"
-                SELECT token_id, user_id, email, token_hash, created_at, expires_at, used, attempts, ip_address
+                SELECT 
+                    token_id as "token_id: _",
+                    user_id as "user_id: _",
+                    email,
+                    token_hash,
+                    created_at,
+                    expires_at,
+                    used,
+                    attempts,
+                    ip_address
                 FROM password_reset_tokens
-                WHERE token_hash = $1
+                WHERE token_hash = $1 AND used = false AND expires_at > NOW()
+                LIMIT 1
             "#,
             token_hash
         )
         .fetch_optional(self.db_manager.pool())
         .await
         .map_err(|e| anyhow!("Failed to fetch reset token: {}", e))?;
-
-        if let Some(r) = row {
-            Ok(Some(PasswordResetToken {
-                token_id: r.token_id,
-                user_id: r.user_id,
-                email: r.email,
-                token_hash: r.token_hash,
-                created_at: r.created_at,
-                expires_at: r.expires_at,
-                used: r.used,
-                attempts: r.attempts as u32,
-                ip_address: r.ip_address,
-            }))
-        } else {
-            Ok(None)
-        }
+        Ok(row)
     }
     
     /// Invalidate a reset token

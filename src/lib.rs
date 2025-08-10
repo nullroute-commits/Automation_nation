@@ -120,6 +120,10 @@ pub mod database_rbac;       // Database-backed RBAC implementation
 pub mod sso;                 // SSO and OIDC integration
 pub mod password_reset;      // Password reset functionality
 pub mod auth_handlers;       // Authentication web handlers
+pub mod certificate_manager; // Cryptographic certificate management system
+pub mod certificate_api;     // Certificate management REST API
+pub mod dashboard_manager;    // Custom dashboard management system
+pub mod dashboard_api;        // Dashboard management REST API
 pub mod comprehensive_test_suite; // Comprehensive test framework
 pub mod precompiled_builder;    // Precompiled build system
 
@@ -157,6 +161,15 @@ pub use database::{DatabaseManager, DatabaseStats, CleanupStats}; // Database ma
 pub use database_rbac::DatabaseRbacManager;                  // Database-backed RBAC
 pub use sso::{SsoManager, OidcConfig};                       // SSO integration
 pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset
+pub use certificate_manager::{                               // Certificate management
+    CertificateManager, Certificate, KeyPair, CertificateRequest, 
+    RenewalRequest, ValidationResult, CryptoAlgorithm, SecurityLevel,
+    CertificateConfig, CertificateStatus, CertificateType
+};
+pub use dashboard_manager::{                              // Dashboard management
+    DashboardManager, Dashboard, DashboardPanel, DashboardTemplate,
+    PanelType, DataSource, DashboardVisibility, TimeRange, PanelData
+};
 pub use comprehensive_test_suite::{ComprehensiveTestSuite, TestConfig, TestResults}; // Comprehensive testing
 pub use precompiled_builder::{PrecompiledBuilder, BuildConfig, TargetArch, BuildArtifact}; // Precompiled builds
 

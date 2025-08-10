@@ -180,7 +180,7 @@ impl SsoManager {
     }
     
     /// Handle OAuth callback and authenticate user
-    pub async fn handle_callback(&mut self, code: &str, state: &str) -> Result<crate::rbac::Session> {
+    pub async fn handle_callback(&mut self, code: &str, state: &str, client_ip: &str) -> Result<crate::rbac::Session> {
         debug!("Handling SSO callback with state: {}", state);
         
         // Retrieve and validate session
