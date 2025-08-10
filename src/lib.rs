@@ -121,6 +121,7 @@ pub mod sso;                 // SSO and OIDC integration
 pub mod password_reset;      // Password reset functionality
 pub mod auth_handlers;       // Authentication web handlers
 pub mod comprehensive_test_suite; // Comprehensive test framework
+pub mod precompiled_builder;    // Precompiled build system
 
 #[cfg(test)]
 pub mod database_tests;      // Comprehensive database test suite
@@ -157,6 +158,7 @@ pub use database_rbac::DatabaseRbacManager;                  // Database-backed 
 pub use sso::{SsoManager, OidcConfig};                       // SSO integration
 pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset
 pub use comprehensive_test_suite::{ComprehensiveTestSuite, TestConfig, TestResults}; // Comprehensive testing
+pub use precompiled_builder::{PrecompiledBuilder, BuildConfig, TargetArch, BuildArtifact}; // Precompiled builds
 
 /// Main result type for the CI test suite operations
 /// 
