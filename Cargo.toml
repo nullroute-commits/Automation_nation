@@ -37,7 +37,7 @@ regex = "1.0"
 futures = "0.3"
 libc = "0.2"
 # Web server dependencies
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "cors"] }
 # HTTP client for GitHub API
