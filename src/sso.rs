@@ -210,7 +210,7 @@ impl SsoManager {
         let session = self.rbac_manager.authenticate(
             &user.username,
             &format!("sso_{}_{}", sso_session.provider, user_info.sub),
-            "127.0.0.1", // This should be updated to use actual client IP
+            client_ip,
             &format!("SSO:{}", sso_session.provider),
         ).await?;
         
