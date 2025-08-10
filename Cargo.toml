@@ -37,9 +37,19 @@ reqwest = { version = "0.11", features = ["json"] }
 # Configuration management
 config = "0.14"
 # Database/storage
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "postgres", "chrono", "uuid", "migrate"] }
 # RBAC dependencies
 bcrypt = "0.15"
+# Base64 encoding for test suite
+base64 = "0.22"
+# Random number generation for keys and tokens
+rand = "0.8"
+# LDAP client for authentication
+ldap3 = "0.11"
+# OAuth2 client for SSO
+oauth2 = "4.4"
+# Email client for password reset
+lettre = "0.11"
 
 [dev-dependencies]
 tokio-test = "0.4"

@@ -102,6 +102,9 @@ pub mod types;         // Common type definitions and shared data structures
 pub mod privilege;     // Privilege escalation management and security testing
 pub mod os_support;    // Cross-platform operating system compatibility layer
 
+// Database and persistence modules
+pub mod database;      // PostgreSQL database persistence layer and migration management
+
 // Web application modules for container deployment management
 pub mod web_types;           // Type definitions for web application data structures
 pub mod github_api;          // GitHub API integration and repository analysis
@@ -126,6 +129,9 @@ pub use executor::ScriptExecutor;    // Main script execution engine
 pub use validator::OutputValidator;  // JSON output validation utilities
 pub use reporter::TestReporter;      // Test result reporting and analysis
 pub use privilege::PrivilegeManager; // Privilege escalation testing framework
+
+// Database and persistence exports
+pub use database::DatabaseManager;   // PostgreSQL database persistence layer
 
 // Web application exports for container deployment and management
 pub use web_types::*;                               // Web application type definitions
