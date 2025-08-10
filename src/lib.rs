@@ -115,6 +115,11 @@ pub mod lxc_manager;         // LXC container orchestration and system virtualiz
 pub mod container_runtime;   // Unified container runtime abstraction layer
 pub mod web_handlers;        // HTTP API route handlers for web interface
 pub mod rbac;                // Role-based access control and authentication system
+pub mod database;            // Database connection and migration management
+pub mod database_rbac;       // Database-backed RBAC implementation
+
+#[cfg(test)]
+pub mod database_tests;      // Comprehensive database test suite
 
 #[cfg(test)]
 pub mod web_test_suite;      // Comprehensive web application test suite
@@ -143,6 +148,8 @@ pub use container_runtime::{                        // Container runtime abstrac
     RuntimeInfo,               // Runtime information and capabilities
     RuntimeCapabilities        // Runtime feature and security capabilities
 };
+pub use database::{DatabaseManager, DatabaseStats, CleanupStats}; // Database management
+pub use database_rbac::DatabaseRbacManager;                  // Database-backed RBAC
 
 /// Main result type for the CI test suite operations
 /// 
