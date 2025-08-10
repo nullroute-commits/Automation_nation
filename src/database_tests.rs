@@ -5,13 +5,11 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::database::DatabaseManager;
-    use crate::database_rbac::DatabaseRbacManager;
+    use crate::{DatabaseManager, DatabaseRbacManager};
     use crate::rbac::{User, UserStatus};
     use uuid::Uuid;
     use chrono::Utc;
     use std::collections::HashMap;
-    use anyhow::Result;
     
     /// Test database creation and migration
     #[tokio::test]
@@ -151,7 +149,11 @@ mod tests {
 /// Integration test for the complete database stack
 #[cfg(test)]
 mod integration_tests {
-    use super::*;
+    use crate::{DatabaseManager, DatabaseRbacManager};
+    use crate::rbac::{User, UserStatus};
+    use uuid::Uuid;
+    use chrono::Utc;
+    use std::collections::HashMap;
     use std::time::Duration;
     use tokio::time::timeout;
     

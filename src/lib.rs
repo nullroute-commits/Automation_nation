@@ -120,6 +120,7 @@ pub mod database_rbac;       // Database-backed RBAC implementation
 pub mod sso;                 // SSO and OIDC integration
 pub mod password_reset;      // Password reset functionality
 pub mod auth_handlers;       // Authentication web handlers
+pub mod comprehensive_test_suite; // Comprehensive test framework
 
 #[cfg(test)]
 pub mod database_tests;      // Comprehensive database test suite
@@ -155,6 +156,7 @@ pub use database::{DatabaseManager, DatabaseStats, CleanupStats}; // Database ma
 pub use database_rbac::DatabaseRbacManager;                  // Database-backed RBAC
 pub use sso::{SsoManager, OidcConfig};                       // SSO integration
 pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset
+pub use comprehensive_test_suite::{ComprehensiveTestSuite, TestConfig, TestResults}; // Comprehensive testing
 
 /// Main result type for the CI test suite operations
 /// 
