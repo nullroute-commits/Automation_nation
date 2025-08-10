@@ -4,13 +4,14 @@
 //! and password reset functionality.
 
 use axum::{
-    extract::{Query, State},
+    extract::{ConnectInfo, Query, State},
     http::StatusCode,
     response::{Html, Json, Redirect},
     routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use log::{info, warn, error, debug};
@@ -110,6 +111,7 @@ pub async fn initiate_sso_login(
 /// Handle OAuth callback from SSO provider
 pub async fn handle_sso_callback(
     State(state): State<AuthState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Query(params): Query<OauthCallback>,
 ) -> Result<Redirect, StatusCode> {
     debug!("SSO callback received with state: {}", params.state);
@@ -121,8 +123,9 @@ pub async fn handle_sso_callback(
     }
     
     let mut sso_manager = state.sso_manager.write().await;
+    let client_ip = addr.ip().to_string();
     
-    match sso_manager.handle_callback(&params.code, &params.state).await {
+    match sso_manager.handle_callback(&params.code, &params.state, &client_ip).await {
         Ok(session) => {
             info!("SSO authentication successful for user: {}", session.user_id);
             // In a real implementation, you would set a secure cookie or JWT token here
