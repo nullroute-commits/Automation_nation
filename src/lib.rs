@@ -112,6 +112,7 @@ pub mod deployment_profiles; // Container deployment profile management and opti
 pub mod podman_manager;      // Podman container orchestration and rootless management
 pub mod docker_manager;      // Docker container orchestration and production deployment
 pub mod lxc_manager;         // LXC container orchestration and system virtualization
+pub mod kubernetes_manager;  // Kubernetes container orchestration and cloud-native deployment
 pub mod container_runtime;   // Unified container runtime abstraction layer
 pub mod web_handlers;        // HTTP API route handlers for web interface
 pub mod rbac;                // Role-based access control and authentication system
@@ -151,6 +152,11 @@ pub use deployment_profiles::DeploymentProfileManager; // Deployment profile man
 pub use podman_manager::PodmanManager;              // Podman container management
 pub use docker_manager::DockerManager;              // Docker container management
 pub use lxc_manager::LxcManager;                    // LXC container management
+pub use kubernetes_manager::{                       // Kubernetes container management
+    KubernetesManager, KubernetesConfig, KubernetesDeploymentRequest,
+    KubernetesDeploymentStatus, KubernetesResources, IngressConfig,
+    ServiceConfig, HealthCheckConfig,
+};
 pub use container_runtime::{                        // Container runtime abstraction
     ContainerRuntimeManager,    // Runtime detection and management
     RuntimeType,               // Container runtime type enumeration

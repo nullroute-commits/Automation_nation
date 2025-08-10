@@ -16,15 +16,15 @@ use bcrypt;
 /// Password reset token information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasswordResetToken {
-    pub token_id: Uuid,
-    pub user_id: Uuid,
+    pub token_id: String,
+    pub user_id: String,
     pub email: String,
     pub token_hash: String,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
-    pub used: bool,
-    pub attempts: u32,
-    pub ip_address: String,
+    pub created_at: String,
+    pub expires_at: String,
+    pub used: i64,
+    pub attempts: i64,
+    pub ip_address: Option<String>,
 }
 
 /// Password reset request information

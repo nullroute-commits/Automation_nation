@@ -432,7 +432,7 @@ pub struct CertificateManager {
     /// Certificate Revocation List
     crl_entries: Vec<CRLEntry>,
     /// Configuration
-    config: CertificateConfig,
+    pub config: CertificateConfig,
 }
 
 /// Legacy protocol configuration (admin-controlled for backward compatibility)
