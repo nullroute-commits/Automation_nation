@@ -124,6 +124,8 @@ pub mod rbac;                // Role-based access control and authentication sys
 
 #[cfg(test)]
 pub mod web_test_suite;      // Comprehensive web application test suite
+#[cfg(test)]  
+pub mod database_tests;      // Database integration test suite
 
 // Re-export commonly used types and functions for convenient access
 pub use types::*;                    // Core type definitions and data structures

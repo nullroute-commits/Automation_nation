@@ -15,6 +15,7 @@ use log::{info, debug};
 use crate::rbac::{User, UserStatus, Session};
 
 /// Database connection and query management
+#[derive(Clone)]
 pub struct DatabaseManager {
     pool: PgPool,
 }
