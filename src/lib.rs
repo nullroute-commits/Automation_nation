@@ -105,6 +105,9 @@ pub mod os_support;    // Cross-platform operating system compatibility layer
 // Database and persistence modules
 pub mod database;      // PostgreSQL database persistence layer and migration management
 
+// Authentication and security modules
+pub mod auth_stubs;    // Authentication module stubs (SSO, LDAP, password reset)
+
 // Web application modules for container deployment management
 pub mod web_types;           // Type definitions for web application data structures
 pub mod github_api;          // GitHub API integration and repository analysis
@@ -132,6 +135,9 @@ pub use privilege::PrivilegeManager; // Privilege escalation testing framework
 
 // Database and persistence exports
 pub use database::DatabaseManager;   // PostgreSQL database persistence layer
+
+// Authentication and security exports
+pub use auth_stubs::{SsoManager, LdapManager, PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation};
 
 // Web application exports for container deployment and management
 pub use web_types::*;                               // Web application type definitions
