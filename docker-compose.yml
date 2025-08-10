@@ -26,7 +26,7 @@ services:
       - ENABLE_HASHING=1
       - ENABLE_SUDO_SUPPORT=0
       - HOST_SYSTEM_ROOT=/host
-      - DATABASE_URL=sqlite:///app/data/automation_nation.db
+      - DATABASE_URL=postgresql://automation_user:${POSTGRES_PASSWORD:-automation_password}@postgres:5432/automation_nation
     networks:
       - automation_network
     restart: unless-stopped

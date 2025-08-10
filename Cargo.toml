@@ -14,6 +14,14 @@ path = "src/bin/ci_runner.rs"
 name = "web_server"
 path = "src/bin/web_server.rs"
 
+[[bin]]
+name = "comprehensive_test_runner"
+path = "src/bin/comprehensive_test_runner.rs"
+
+[[bin]]
+name = "precompiled_builder"
+path = "src/bin/precompiled_builder.rs"
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -37,11 +45,36 @@ reqwest = { version = "0.11", features = ["json"] }
 # Configuration management
 config = "0.14"
 # Database/storage
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "postgres", "chrono", "uuid"] }
 # RBAC dependencies
 bcrypt = "0.15"
+# Additional dependencies for tests
+rand = "0.8"
+base64 = "0.22"
+# SSO and authentication dependencies
+urlencoding = "2.1"
+# Test report generation
+html-escape = "0.2"
+# Build system dependencies
+sha2 = "0.10"
+flate2 = "1.0"
 
 [dev-dependencies]
 tokio-test = "0.4"
 pretty_assertions = "1.0"
 axum-test = "14.0"
+
+# Optimized build profiles for precompiled releases
+[profile.release-lto]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.release-size]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

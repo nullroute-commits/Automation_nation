@@ -115,6 +115,16 @@ pub mod lxc_manager;         // LXC container orchestration and system virtualiz
 pub mod container_runtime;   // Unified container runtime abstraction layer
 pub mod web_handlers;        // HTTP API route handlers for web interface
 pub mod rbac;                // Role-based access control and authentication system
+pub mod database;            // Database connection and migration management
+pub mod database_rbac;       // Database-backed RBAC implementation
+pub mod sso;                 // SSO and OIDC integration
+pub mod password_reset;      // Password reset functionality
+pub mod auth_handlers;       // Authentication web handlers
+pub mod comprehensive_test_suite; // Comprehensive test framework
+pub mod precompiled_builder;    // Precompiled build system
+
+#[cfg(test)]
+pub mod database_tests;      // Comprehensive database test suite
 
 #[cfg(test)]
 pub mod web_test_suite;      // Comprehensive web application test suite
@@ -143,6 +153,12 @@ pub use container_runtime::{                        // Container runtime abstrac
     RuntimeInfo,               // Runtime information and capabilities
     RuntimeCapabilities        // Runtime feature and security capabilities
 };
+pub use database::{DatabaseManager, DatabaseStats, CleanupStats}; // Database management
+pub use database_rbac::DatabaseRbacManager;                  // Database-backed RBAC
+pub use sso::{SsoManager, OidcConfig};                       // SSO integration
+pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset
+pub use comprehensive_test_suite::{ComprehensiveTestSuite, TestConfig, TestResults}; // Comprehensive testing
+pub use precompiled_builder::{PrecompiledBuilder, BuildConfig, TargetArch, BuildArtifact}; // Precompiled builds
 
 /// Main result type for the CI test suite operations
 /// 
