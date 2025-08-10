@@ -346,9 +346,30 @@ impl PasswordResetManager {
     
     /// Get token from database
     async fn get_token_from_database(&self, token: &str) -> Result<Option<PasswordResetToken>> {
-        // TODO: Implement proper database query once schema is fixed
-        // For now, return None to allow compilation
-        Ok(None)
+        let token_hash = self.hash_token(token)?;
+        let row = sqlx::query_as!(
+            PasswordResetToken,
+            r#"
+                SELECT 
+                    token_id as "token_id: _",
+                    user_id as "user_id: _",
+                    email,
+                    token_hash,
+                    created_at,
+                    expires_at,
+                    used,
+                    attempts,
+                    ip_address
+                FROM password_reset_tokens
+                WHERE token_hash = $1 AND used = false AND expires_at > NOW()
+                LIMIT 1
+            "#,
+            token_hash
+        )
+        .fetch_optional(self.db_manager.pool())
+        .await
+        .map_err(|e| anyhow!("Failed to fetch reset token: {}", e))?;
+        Ok(row)
     }
     
     /// Invalidate a reset token
