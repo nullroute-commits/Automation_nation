@@ -16,13 +16,13 @@ use bcrypt;
 /// Password reset token information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasswordResetToken {
-    pub token_id: String,
-    pub user_id: String,
+    pub token_id: Uuid,
+    pub user_id: Uuid,
     pub email: String,
     pub token_hash: String,
-    pub created_at: String,
-    pub expires_at: String,
-    pub used: i64,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    pub used: bool,
     pub attempts: i64,
     pub ip_address: Option<String>,
 }
@@ -224,7 +224,7 @@ impl PasswordResetManager {
             expires_at: Utc::now() + Duration::hours(1), // 1 hour expiration
             used: false,
             attempts: 0,
-            ip_address: ip_address.to_string(),
+            ip_address: Some(ip_address.to_string()),
         };
         
         // Store in database
