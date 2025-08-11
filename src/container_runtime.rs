@@ -159,7 +159,7 @@ impl ContainerRuntimeManager {
         }
 
         // Check Kubernetes
-        if let Ok(available) = self.kubernetes_manager.check_availability().await {
+        if let Ok(_available) = self.kubernetes_manager.check_availability().await {
             let k8s_info = self.kubernetes_manager.get_runtime_info().await.unwrap_or_else(|_| {
                 RuntimeInfo {
                     runtime_type: "kubernetes".to_string(),
@@ -223,7 +223,7 @@ impl ContainerRuntimeManager {
         // Verify runtime is available
         if let Some(info) = self.available_runtimes.get(&runtime_type) {
             if !info.available {
-                return Err(anyhow::anyhow!("Runtime {} is not available: {:?}", runtime_type, info.error));
+                return Err(anyhow::anyhow!("Runtime {} is not available", runtime_type));
             }
         } else {
             return Err(anyhow::anyhow!("Unknown runtime type: {}", runtime_type));
@@ -236,6 +236,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.deploy(profile, request).await,
             RuntimeType::Lxc => self.lxc_manager.deploy(profile, request).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.deploy(profile, request).await,
         }
     }
 
@@ -255,6 +256,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.undeploy(deployment).await,
             RuntimeType::Lxc => self.lxc_manager.undeploy(deployment).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.undeploy(deployment).await,
         }
     }
 
@@ -265,6 +267,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.get_deployment_status(deployment).await,
             RuntimeType::Lxc => self.lxc_manager.get_deployment_status(deployment).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.get_deployment_status(deployment).await,
         }
     }
 
@@ -275,6 +278,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.get_container_logs(deployment, tail_lines).await,
             RuntimeType::Lxc => self.lxc_manager.get_container_logs(deployment, tail_lines).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.get_container_logs(deployment, tail_lines).await,
         }
     }
 
@@ -285,6 +289,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.list_deployments().await,
             RuntimeType::Lxc => self.lxc_manager.list_deployments().await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.list_deployments().await,
         }
     }
 
@@ -295,6 +300,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.restart_deployment(deployment).await,
             RuntimeType::Lxc => self.lxc_manager.restart_deployment(deployment).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.restart_deployment(deployment).await,
         }
     }
 
@@ -305,6 +311,7 @@ impl ContainerRuntimeManager {
             RuntimeType::Docker => self.docker_manager.update_resources(deployment, limits).await,
             RuntimeType::Lxc => self.lxc_manager.update_resources(deployment, limits).await,
             RuntimeType::Containerd => Err(anyhow::anyhow!("Containerd runtime not yet implemented")),
+            RuntimeType::Kubernetes => self.kubernetes_manager.update_resources(deployment, limits).await,
         }
     }
 
@@ -312,55 +319,64 @@ impl ContainerRuntimeManager {
     pub fn get_runtime_capabilities(&self, runtime_type: RuntimeType) -> RuntimeCapabilities {
         match runtime_type {
             RuntimeType::Podman => RuntimeCapabilities {
-                supports_rootless: true,
-                supports_pods: true,
+                supports_networking: true,
                 supports_volumes: true,
-                supports_networks: true,
-                supports_healthchecks: true,
                 supports_resource_limits: true,
-                native_security_features: vec![
-                    "SELinux integration".to_string(),
-                    "Rootless mode".to_string(),
-                    "User namespaces".to_string(),
-                ],
+                supports_health_checks: true,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: true,
+                max_cpu_cores: Some(64),
+                max_memory_gb: Some(256),
             },
             RuntimeType::Docker => RuntimeCapabilities {
-                supports_rootless: true, // Available in recent versions
-                supports_pods: false,
+                supports_networking: true,
                 supports_volumes: true,
-                supports_networks: true,
-                supports_healthchecks: true,
                 supports_resource_limits: true,
-                native_security_features: vec![
-                    "AppArmor profiles".to_string(),
-                    "Seccomp profiles".to_string(),
-                    "User namespaces".to_string(),
-                ],
+                supports_health_checks: true,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: true,
+                max_cpu_cores: Some(64),
+                max_memory_gb: Some(256),
             },
             RuntimeType::Lxc => RuntimeCapabilities {
-                supports_rootless: true,
-                supports_pods: false,
+                supports_networking: true,
                 supports_volumes: true,
-                supports_networks: true,
-                supports_healthchecks: false,
                 supports_resource_limits: true,
-                native_security_features: vec![
-                    "Mandatory Access Control".to_string(),
-                    "Resource isolation".to_string(),
-                    "Privilege dropping".to_string(),
-                ],
+                supports_health_checks: false,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: false,
+                max_cpu_cores: Some(32),
+                max_memory_gb: Some(128),
             },
             RuntimeType::Containerd => RuntimeCapabilities {
-                supports_rootless: true,
-                supports_pods: false,
+                supports_networking: true,
                 supports_volumes: true,
-                supports_networks: true,
-                supports_healthchecks: false,
                 supports_resource_limits: true,
-                native_security_features: vec![
-                    "gVisor integration".to_string(),
-                    "Kata Containers".to_string(),
-                ],
+                supports_health_checks: false,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: true,
+                max_cpu_cores: Some(64),
+                max_memory_gb: Some(256),
+            },
+            RuntimeType::Kubernetes => RuntimeCapabilities {
+                supports_networking: true,
+                supports_volumes: true,
+                supports_resource_limits: true,
+                supports_health_checks: true,
+                supports_rolling_updates: true,
+                supports_load_balancing: true,
+                supports_service_discovery: true,
+                supports_secrets_management: true,
+                max_cpu_cores: None, // Scalable based on cluster
+                max_memory_gb: None, // Scalable based on cluster
             },
         }
     }
@@ -386,23 +402,24 @@ impl ContainerRuntimeManager {
                 RuntimeType::Docker => score += 8,  // Good all-around
                 RuntimeType::Lxc => score += 6,     // Good for system containers
                 RuntimeType::Containerd => score += 4, // More low-level
+                RuntimeType::Kubernetes => score += 12, // Best for production scaling
             }
             
             // Bonus for specific requirements
-            if profile.system_requirements.required_architectures.len() > 1 && capabilities.supports_rootless {
-                score += 3; // Multi-arch usually benefits from rootless
+            if profile.system_requirements.required_architectures.len() > 1 && capabilities.supports_secrets_management {
+                score += 3; // Multi-arch usually benefits from advanced security
             }
             
             if profile.container_config.volumes.len() > 3 && capabilities.supports_volumes {
                 score += 2; // Many volumes
             }
             
-            if profile.container_config.ports.len() > 5 && capabilities.supports_networks {
+            if profile.container_config.ports.len() > 5 && capabilities.supports_networking {
                 score += 2; // Many ports
             }
             
             if profile.optimizations.iter().any(|opt| matches!(opt.optimization_type, OptimizationType::SecurityHardening)) {
-                if capabilities.supports_rootless {
+                if capabilities.supports_secrets_management {
                     score += 5; // Security focus
                 }
             }
@@ -424,6 +441,7 @@ impl Default for ContainerRuntimeManager {
             podman_manager: PodmanManager::new(),
             docker_manager: DockerManager::new(),
             lxc_manager: LxcManager::new(),
+            kubernetes_manager: KubernetesManager::new(),
             available_runtimes: HashMap::new(),
         }
     }
@@ -454,16 +472,16 @@ mod tests {
         let manager = ContainerRuntimeManager::default();
         
         let podman_caps = manager.get_runtime_capabilities(RuntimeType::Podman);
-        assert!(podman_caps.supports_rootless);
-        assert!(podman_caps.supports_pods);
+        assert!(podman_caps.supports_networking);
+        assert!(podman_caps.supports_volumes);
         
         let docker_caps = manager.get_runtime_capabilities(RuntimeType::Docker);
         assert!(docker_caps.supports_volumes);
-        assert!(!docker_caps.supports_pods);
+        assert!(docker_caps.supports_health_checks);
         
         let lxc_caps = manager.get_runtime_capabilities(RuntimeType::Lxc);
-        assert!(lxc_caps.supports_rootless);
-        assert!(!lxc_caps.supports_healthchecks);
+        assert!(lxc_caps.supports_networking);
+        assert!(!lxc_caps.supports_health_checks);
     }
 
     #[test]
@@ -472,16 +490,38 @@ mod tests {
         
         // Mock available runtimes
         manager.available_runtimes.insert(RuntimeType::Podman, RuntimeInfo {
-            runtime_type: RuntimeType::Podman,
+            runtime_type: "podman".to_string(),
             available: true,
-            version: Some("4.0.0".to_string()),
-            error: None,
+            version: "4.0.0".to_string(),
+            capabilities: RuntimeCapabilities {
+                supports_networking: true,
+                supports_volumes: true,
+                supports_resource_limits: true,
+                supports_health_checks: true,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: true,
+                max_cpu_cores: Some(64),
+                max_memory_gb: Some(256),
+            },
         });
         manager.available_runtimes.insert(RuntimeType::Docker, RuntimeInfo {
-            runtime_type: RuntimeType::Docker,
+            runtime_type: "docker".to_string(),
             available: true,
-            version: Some("24.0.0".to_string()),
-            error: None,
+            version: "24.0.0".to_string(),
+            capabilities: RuntimeCapabilities {
+                supports_networking: true,
+                supports_volumes: true,
+                supports_resource_limits: true,
+                supports_health_checks: true,
+                supports_rolling_updates: false,
+                supports_load_balancing: false,
+                supports_service_discovery: false,
+                supports_secrets_management: true,
+                max_cpu_cores: Some(64),
+                max_memory_gb: Some(256),
+            },
         });
         
         // Create a test profile

@@ -11,7 +11,6 @@ use std::process::Command;
 use uuid::Uuid;
 
 use crate::{
-    web_types::{DeploymentProfile, ResourceLimits},
     container_runtime::{RuntimeCapabilities, RuntimeInfo},
 };
 
@@ -365,8 +364,8 @@ impl KubernetesManager {
         Ok(deployment_id)
     }
 
-    /// Get deployment status
-    pub async fn get_deployment_status(
+    /// Get deployment status (native Kubernetes method)
+    pub async fn get_k8s_deployment_status(
         &self,
         deployment_name: &str,
         namespace: Option<&str>,
@@ -666,6 +665,43 @@ spec:
             .collect();
         
         format!("  annotations:\n{}", annotation_lines.join("\n"))
+    }
+
+    // Adapter methods to match ContainerRuntimeManager interface
+    
+    /// Deploy using the container runtime interface
+    pub async fn deploy(&self, _profile: &crate::web_types::DeploymentProfile, _request: &crate::web_types::CreateDeploymentRequest) -> crate::Result<crate::web_types::CreateDeploymentResponse> {
+        Err(anyhow!("Kubernetes deploy adapter not yet implemented"))
+    }
+    
+    /// Undeploy using the container runtime interface
+    pub async fn undeploy(&self, _deployment: &crate::web_types::DeploymentInstance) -> crate::Result<()> {
+        Err(anyhow!("Kubernetes undeploy adapter not yet implemented"))
+    }
+    
+    /// Get container logs using the container runtime interface
+    pub async fn get_container_logs(&self, _deployment: &crate::web_types::DeploymentInstance, _tail_lines: u32) -> crate::Result<Vec<crate::web_types::DeploymentLog>> {
+        Err(anyhow!("Kubernetes get_container_logs adapter not yet implemented"))
+    }
+    
+    /// Get deployment status using the container runtime interface (adapter)
+    pub async fn get_deployment_status(&self, _deployment: &crate::web_types::DeploymentInstance) -> crate::Result<crate::web_types::DeploymentStatus> {
+        Err(anyhow!("Kubernetes get_deployment_status adapter not yet implemented"))
+    }
+    
+    /// List deployments using the container runtime interface
+    pub async fn list_deployments(&self) -> crate::Result<Vec<std::collections::HashMap<String, String>>> {
+        Err(anyhow!("Kubernetes list_deployments adapter not yet implemented"))
+    }
+    
+    /// Restart deployment using the container runtime interface
+    pub async fn restart_deployment(&self, _deployment: &crate::web_types::DeploymentInstance) -> crate::Result<()> {
+        Err(anyhow!("Kubernetes restart_deployment adapter not yet implemented"))
+    }
+    
+    /// Update resources using the container runtime interface
+    pub async fn update_resources(&self, _deployment: &crate::web_types::DeploymentInstance, _limits: &crate::web_types::ResourceLimits) -> crate::Result<()> {
+        Err(anyhow!("Kubernetes update_resources adapter not yet implemented"))
     }
 }
 

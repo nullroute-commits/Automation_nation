@@ -4,7 +4,7 @@
 //! allowing users to create custom monitoring dashboards with real-time metrics,
 //! alerts, and visualizations for the Automation Nation platform.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
