@@ -198,7 +198,7 @@ pub async fn list_certificates(
     let cert_manager = state.cert_manager.read().await;
     
     // Build filter from query parameters
-    let mut filter = CertificateFilter {
+    let filter = CertificateFilter {
         status: query.status,
         cert_type: None, // Convert from string if needed
         expires_before: None, // Parse datetime if provided
@@ -407,7 +407,7 @@ pub async fn import_certificate(
 pub async fn list_key_pairs(
     State(state): State<CertificateAppState>,
 ) -> Result<Json<ApiResponse<Vec<KeyPair>>>, ApiError> {
-    let cert_manager = state.cert_manager.read().await;
+    let _cert_manager = state.cert_manager.read().await;
     
     // For security, we should not expose private key data in the API
     // This is a placeholder - in a real implementation, filter sensitive data
@@ -467,7 +467,7 @@ pub async fn get_key_pair(
 
 /// Delete a key pair
 pub async fn delete_key_pair(
-    State(state): State<CertificateAppState>,
+    State(_state): State<CertificateAppState>,
     Path(_key_id): Path<Uuid>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     // This is a placeholder - implement key pair deletion

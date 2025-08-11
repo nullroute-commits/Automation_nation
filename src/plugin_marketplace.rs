@@ -10,18 +10,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use uuid::Uuid;
 
 /// Plugin marketplace manager
 pub struct PluginMarketplace {
     /// Base directory for plugin storage
-    plugin_dir: PathBuf,
+    pub plugin_dir: PathBuf,
     /// Marketplace configuration
-    config: MarketplaceConfig,
+    pub config: MarketplaceConfig,
     /// Installed plugins
-    installed_plugins: HashMap<String, InstalledPlugin>,
+    pub installed_plugins: HashMap<String, InstalledPlugin>,
     /// Available plugins from marketplace
-    available_plugins: HashMap<String, PluginInfo>,
+    pub available_plugins: HashMap<String, PluginInfo>,
 }
 
 /// Marketplace configuration
@@ -472,7 +471,8 @@ impl PluginMarketplace {
         plugin.enabled = enabled;
         plugin.status = if enabled { PluginStatus::Ready } else { PluginStatus::Disabled };
 
-        self.save_plugin_metadata(plugin)?;
+        let plugin_copy = plugin.clone();
+        self.save_plugin_metadata(&plugin_copy)?;
         
         log::info!("Plugin {} {}", plugin_id, if enabled { "enabled" } else { "disabled" });
         Ok(())

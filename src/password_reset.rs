@@ -16,13 +16,13 @@ use bcrypt;
 /// Password reset token information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasswordResetToken {
-    pub token_id: String,
-    pub user_id: String,
+    pub token_id: String,    // Store as string, convert to Uuid when needed
+    pub user_id: String,     // Store as string, convert to Uuid when needed  
     pub email: String,
     pub token_hash: String,
-    pub created_at: String,
-    pub expires_at: String,
-    pub used: i64,
+    pub created_at: String,  // Store as string, convert to DateTime when needed
+    pub expires_at: String,  // Store as string, convert to DateTime when needed
+    pub used: i64,           // SQLite uses integers for booleans
     pub attempts: i64,
     pub ip_address: Option<String>,
 }
@@ -190,14 +190,16 @@ impl PasswordResetManager {
         self.validate_password_strength(&confirmation.new_password)?;
         
         // Update user password
-        self.update_user_password(token.user_id, &confirmation.new_password).await?;
+        let user_id = Uuid::parse_str(&token.user_id)
+            .map_err(|e| anyhow!("Invalid user ID format: {}", e))?;
+        self.update_user_password(user_id, &confirmation.new_password).await?;
         
         // Invalidate token
         self.invalidate_token(&confirmation.token).await?;
         
         // Log successful password reset
         self.log_password_reset_event(
-            Some(token.user_id),
+            Some(user_id),
             "password_reset_completed".to_string(),
             &token.email,
             &confirmation.client_ip,
@@ -216,15 +218,15 @@ impl PasswordResetManager {
         let _token_hash = self.hash_token(&raw_token)?;
         
         let token = PasswordResetToken {
-            token_id,
-            user_id,
+            token_id: token_id.to_string(),
+            user_id: user_id.to_string(),
             email: email.to_string(),
             token_hash: raw_token.clone(), // Store raw token temporarily for email sending
-            created_at: Utc::now(),
-            expires_at: Utc::now() + Duration::hours(1), // 1 hour expiration
-            used: false,
+            created_at: Utc::now().to_rfc3339(),
+            expires_at: (Utc::now() + Duration::hours(1)).to_rfc3339(), // 1 hour expiration
+            used: 0, // false as i64
             attempts: 0,
-            ip_address: ip_address.to_string(),
+            ip_address: Some(ip_address.to_string()),
         };
         
         // Store in database
@@ -240,12 +242,16 @@ impl PasswordResetManager {
     async fn find_and_validate_token(&mut self, token: &str) -> Result<PasswordResetToken> {
         // Check in-memory first
         if let Some(token_info) = self.pending_tokens.get(token).cloned() {
-            if token_info.expires_at < Utc::now() {
+            let expires_at = DateTime::parse_from_rfc3339(&token_info.expires_at)
+                .map_err(|e| anyhow!("Invalid expiration date format: {}", e))?
+                .with_timezone(&Utc);
+            
+            if expires_at < Utc::now() {
                 self.pending_tokens.remove(token);
                 return Err(anyhow!("Password reset token has expired"));
             }
             
-            if token_info.used {
+            if token_info.used != 0 {
                 return Err(anyhow!("Password reset token has already been used"));
             }
             
@@ -256,11 +262,15 @@ impl PasswordResetManager {
         let token_info = self.get_token_from_database(token).await?;
         match token_info {
             Some(token_info) => {
-                if token_info.expires_at < Utc::now() {
+                let expires_at = DateTime::parse_from_rfc3339(&token_info.expires_at)
+                    .map_err(|e| anyhow!("Invalid expiration date format: {}", e))?
+                    .with_timezone(&Utc);
+                    
+                if expires_at < Utc::now() {
                     return Err(anyhow!("Password reset token has expired"));
                 }
                 
-                if token_info.used {
+                if token_info.used != 0 {
                     return Err(anyhow!("Password reset token has already been used"));
                 }
                 
@@ -328,12 +338,12 @@ impl PasswordResetManager {
         sqlx::query(
             "INSERT INTO password_reset_tokens (token_id, user_id, email, token_hash, created_at, expires_at, used, attempts, ip_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
         )
-        .bind(token.token_id)
-        .bind(token.user_id)
+        .bind(&token.token_id)
+        .bind(&token.user_id)
         .bind(&token.email)
         .bind(token_hash)
-        .bind(token.created_at)
-        .bind(token.expires_at)
+        .bind(&token.created_at)
+        .bind(&token.expires_at)
         .bind(token.used)
         .bind(token.attempts as i32)
         .bind(&token.ip_address)
@@ -500,7 +510,13 @@ Automation Nation Team
         let now = Utc::now();
         
         // Remove expired tokens
-        self.pending_tokens.retain(|_, token| token.expires_at > now);
+        self.pending_tokens.retain(|_, token| {
+            if let Ok(expires_at) = DateTime::parse_from_rfc3339(&token.expires_at) {
+                expires_at.with_timezone(&Utc) > now
+            } else {
+                false // Remove tokens with invalid date format
+            }
+        });
         
         // Clean up rate limit tracking (keep only last 24 hours)
         let day_ago = now - Duration::days(1);
