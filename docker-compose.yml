@@ -44,6 +44,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: automation-nation-db
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: automation_nation
       POSTGRES_USER: automation_user

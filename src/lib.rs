@@ -119,7 +119,7 @@ pub mod rbac;                // Role-based access control and authentication sys
 pub mod database;            // Database connection and migration management
 pub mod database_rbac;       // Database-backed RBAC implementation
 pub mod sso;                 // SSO and OIDC integration
-pub mod password_reset;      // Password reset functionality
+// pub mod password_reset;      // Password reset functionality (temporarily disabled)
 pub mod auth_handlers;       // Authentication web handlers
 pub mod certificate_manager; // Cryptographic certificate management system
 pub mod certificate_api;     // Certificate management REST API
@@ -169,7 +169,7 @@ pub use container_runtime::{                        // Container runtime abstrac
 pub use database::{DatabaseManager, DatabaseStats, CleanupStats}; // Database management
 pub use database_rbac::DatabaseRbacManager;                  // Database-backed RBAC
 pub use sso::{SsoManager, OidcConfig};                       // SSO integration
-pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset
+// pub use password_reset::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Password reset (temporarily disabled)
 pub use certificate_manager::{                               // Certificate management
     CertificateManager, Certificate, KeyPair, CertificateRequest, 
     RenewalRequest, ValidationResult, CryptoAlgorithm, SecurityLevel,
