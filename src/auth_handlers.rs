@@ -16,13 +16,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use log::{info, warn, error, debug};
 use crate::SsoManager;
-// use crate::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Temporarily disabled
+// use crate::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Temporarily disabled for build
 
 /// Authentication application state
 #[derive(Clone)]
 pub struct AuthState {
     pub sso_manager: Arc<tokio::sync::RwLock<SsoManager>>,
-    // pub password_reset_manager: Arc<tokio::sync::RwLock<PasswordResetManager>>, // Temporarily disabled
+    // pub password_reset_manager: Arc<tokio::sync::RwLock<PasswordResetManager>>, // Temporarily disabled for build
 }
 
 /// SSO login request
@@ -58,7 +58,7 @@ pub fn create_auth_router(state: AuthState) -> Router {
         .route("/auth/sso/login", post(initiate_sso_login))
         .route("/auth/sso/callback", get(handle_sso_callback))
         
-        // Password reset routes (temporarily disabled)
+        // Password reset routes (temporarily disabled for build)
         // .route("/auth/password-reset", post(initiate_password_reset))
         // .route("/auth/password-reset/confirm", post(confirm_password_reset))
         
@@ -565,3 +565,67 @@ pub async fn reset_password_confirm_page(
     
     Ok(Html(html))
 }
+
+/* Password reset handlers temporarily disabled for build
+/// Initiate password reset
+pub async fn initiate_password_reset(
+    State(state): State<AuthState>,
+    Json(request): Json<PasswordResetRequest>,
+) -> Result<Json<AuthResponse>, StatusCode> {
+    debug!("Password reset requested for email: {}", request.email);
+    
+    let mut password_reset_manager = state.password_reset_manager.write().await;
+    
+    match password_reset_manager.initiate_password_reset(request).await {
+        Ok(_) => {
+            info!("Password reset initiated for email: {}", request.email);
+            Ok(Json(AuthResponse {
+                success: true,
+                message: "If the email address is registered, you will receive a password reset link.".to_string(),
+                session_token: None,
+                redirect_url: None,
+            }))
+        },
+        Err(e) => {
+            warn!("Password reset failed: {}", e);
+            Ok(Json(AuthResponse {
+                success: false,
+                message: "Unable to process password reset request.".to_string(),
+                session_token: None,
+                redirect_url: None,
+            }))
+        }
+    }
+}
+
+/// Confirm password reset
+pub async fn confirm_password_reset(
+    State(state): State<AuthState>,
+    Json(confirmation): Json<PasswordResetConfirmation>,
+) -> Result<Json<AuthResponse>, StatusCode> {
+    debug!("Password reset confirmation for token: {}", confirmation.token);
+    
+    let mut password_reset_manager = state.password_reset_manager.write().await;
+    
+    match password_reset_manager.confirm_password_reset(confirmation).await {
+        Ok(_) => {
+            info!("Password reset completed successfully");
+            Ok(Json(AuthResponse {
+                success: true,
+                message: "Password reset successfully!".to_string(),
+                session_token: None,
+                redirect_url: Some("/login".to_string()),
+            }))
+        },
+        Err(e) => {
+            warn!("Password reset confirmation failed: {}", e);
+            Ok(Json(AuthResponse {
+                success: false,
+                message: "Invalid or expired reset token.".to_string(),
+                session_token: None,
+                redirect_url: None,
+            }))
+        }
+    }
+}
+*/

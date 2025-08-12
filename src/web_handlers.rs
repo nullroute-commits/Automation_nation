@@ -56,6 +56,14 @@ pub fn create_router(state: AppState) -> Router {
         .route("/profiles", get(profiles_page_handler))
         .route("/system", get(system_page_handler))
         
+        // Administration routes
+        .route("/admin", get(admin_dashboard_handler))
+        .route("/admin/users", get(admin_users_handler))
+        .route("/admin/plugins", get(admin_plugins_handler))
+        .route("/admin/settings", get(admin_settings_handler))
+        .route("/admin/monitoring", get(admin_monitoring_handler))
+        .route("/admin/logs", get(admin_logs_handler))
+        
         // API routes
         .route("/api/system/profile", get(get_system_profile))
         .route("/api/system/profile", post(generate_system_profile))
@@ -76,6 +84,18 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/deployments/:id/restart", post(restart_deployment))
         .route("/api/deployments/:id/logs", get(get_deployment_logs))
         .route("/api/deployments/:id/status", get(get_deployment_status))
+        
+        // Administration API routes
+        .route("/api/admin/users", get(api_list_users))
+        .route("/api/admin/users", post(api_create_user))
+        .route("/api/admin/users/:id", get(api_get_user))
+        .route("/api/admin/users/:id", delete(api_delete_user))
+        .route("/api/admin/plugins", get(api_list_plugins))
+        .route("/api/admin/plugins/:id/toggle", post(api_toggle_plugin))
+        .route("/api/admin/settings", get(api_get_settings))
+        .route("/api/admin/settings", post(api_update_settings))
+        .route("/api/admin/system/stats", get(api_system_stats))
+        .route("/api/admin/logs", get(api_get_logs))
         
         .with_state(state)
 }
@@ -127,9 +147,13 @@ pub async fn dashboard_handler(State(state): State<AppState>) -> std::result::Re
         .status.available {{ background: #dcfce7; color: #166534; }}
         .status.unavailable {{ background: #fee2e2; color: #dc2626; }}
         .nav {{ background: #1f2937; padding: 10px 0; margin: -20px -20px 20px -20px; }}
-        .nav-links {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; }}
-        .nav-links a {{ color: white; text-decoration: none; margin-right: 20px; }}
-        .nav-links a:hover {{ color: #60a5fa; }}
+        .nav-links {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }}
+        .nav-links .main-nav {{ display: flex; }}
+        .nav-links .admin-nav {{ display: flex; }}
+        .nav-links a {{ color: white; text-decoration: none; margin-right: 20px; padding: 5px 10px; border-radius: 4px; }}
+        .nav-links a:hover {{ background: #374151; }}
+        .nav-links .admin-nav a {{ background: #dc2626; }}
+        .nav-links .admin-nav a:hover {{ background: #b91c1c; }}
     </style>
 </head>
 <body>
@@ -1282,4 +1306,687 @@ pub async fn get_deployment_status(
             ))
         }
     }
+}
+
+// Admin Interface Handlers
+
+/// Shared navigation template for admin pages
+fn get_admin_nav() -> String {
+    r#"
+    <nav class="nav">
+        <div class="nav-links">
+            <div class="main-nav">
+                <a href="/">Home</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/search">Search Software</a>
+                <a href="/deployments">Deployments</a>
+                <a href="/profiles">Profiles</a>
+                <a href="/system">System Info</a>
+            </div>
+            <div class="admin-nav">
+                <a href="/admin">Administration</a>
+            </div>
+        </div>
+    </nav>
+    "#.to_string()
+}
+
+/// Get common admin styles
+fn get_admin_styles() -> String {
+    r#"
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav { background: #1f2937; padding: 10px 0; margin: -20px -20px 20px -20px; }
+        .nav-links { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .nav-links .main-nav { display: flex; }
+        .nav-links .admin-nav { display: flex; }
+        .nav-links a { color: white; text-decoration: none; margin-right: 20px; padding: 5px 10px; border-radius: 4px; }
+        .nav-links a:hover { background: #374151; }
+        .nav-links .admin-nav a { background: #dc2626; }
+        .nav-links .admin-nav a:hover { background: #b91c1c; }
+        .admin-sidebar { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        .sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); height: fit-content; }
+        .sidebar h3 { margin-top: 0; color: #1f2937; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li { margin: 10px 0; }
+        .sidebar a { color: #374151; text-decoration: none; padding: 8px 12px; display: block; border-radius: 4px; }
+        .sidebar a:hover { background: #f3f4f6; }
+        .sidebar a.active { background: #dbeafe; color: #1d4ed8; }
+        .main-content { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .grid { display: grid; gap: 20px; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .btn { background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #1d4ed8; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-success { background: #16a34a; }
+        .btn-success:hover { background: #15803d; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-value { font-size: 2em; font-weight: bold; color: #2563eb; }
+        .stat-label { color: #6b7280; margin-top: 5px; }
+        .status { padding: 5px 10px; border-radius: 4px; font-size: 0.9em; }
+        .status.online { background: #dcfce7; color: #166534; }
+        .status.offline { background: #fee2e2; color: #dc2626; }
+        .status.warning { background: #fef3c7; color: #92400e; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; color: #374151; font-weight: 500; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    "#.to_string()
+}
+
+/// Main administration dashboard
+pub async fn admin_dashboard_handler(State(state): State<AppState>) -> Html<String> {
+    let deployments = state.deployments.read().await;
+    let profiles = state.profiles.read().await;
+    let system_profile = state.system_profile.read().await;
+    
+    let deployment_count = deployments.len();
+    let profile_count = profiles.len();
+    let system_status = if system_profile.is_some() { "Generated" } else { "Not Generated" };
+    
+    let html = format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Administration - Automation Nation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        {styles}
+    </style>
+</head>
+<body>
+    {nav}
+    
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Administration Dashboard</h1>
+            <p>Manage users, plugins, system settings, and monitor the Automation Nation platform</p>
+        </div>
+        
+        <div class="admin-sidebar">
+            <div class="sidebar">
+                <h3>Administration</h3>
+                <ul>
+                    <li><a href="/admin" class="active">Dashboard</a></li>
+                    <li><a href="/admin/users">User Management</a></li>
+                    <li><a href="/admin/plugins">Plugin Marketplace</a></li>
+                    <li><a href="/admin/settings">System Settings</a></li>
+                    <li><a href="/admin/monitoring">Monitoring</a></li>
+                    <li><a href="/admin/logs">System Logs</a></li>
+                </ul>
+            </div>
+            
+            <div class="main-content">
+                <h2>System Overview</h2>
+                
+                <div class="grid grid-3">
+                    <div class="stat-card">
+                        <div class="stat-value">{deployment_count}</div>
+                        <div class="stat-label">Active Deployments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{profile_count}</div>
+                        <div class="stat-label">Deployment Profiles</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{system_status}</div>
+                        <div class="stat-label">System Profile</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-2" style="margin-top: 20px;">
+                    <div class="card">
+                        <h3>Quick Actions</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <a href="/admin/users" class="btn">Manage Users</a>
+                            <a href="/admin/plugins" class="btn">Manage Plugins</a>
+                            <a href="/admin/settings" class="btn">System Settings</a>
+                            <a href="/admin/monitoring" class="btn">View Monitoring</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>System Status</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Web Server</span>
+                                <span class="status online">Online</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Container Runtime</span>
+                                <span class="status online">Podman Available</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>GitHub API</span>
+                                <span class="status warning">Limited (Proxy Blocked)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>System Profiler</span>
+                                <span class="status online">Available</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 20px;">
+                    <h3>Recent Activity</h3>
+                    <div id="recent-activity">
+                        <p>Loading recent activity...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load recent activity
+        fetch('/api/admin/system/stats')
+            .then(response => response.json())
+            .then(data => {{
+                const activityDiv = document.getElementById('recent-activity');
+                if (data.recent_activity && data.recent_activity.length > 0) {{
+                    activityDiv.innerHTML = data.recent_activity.map(activity => 
+                        `<div style="padding: 10px; border-bottom: 1px solid #e5e7eb;">
+                            <strong>${{activity.action}}</strong> - ${{activity.timestamp}}
+                            <br><small>${{activity.details}}</small>
+                        </div>`
+                    ).join('');
+                }} else {{
+                    activityDiv.innerHTML = '<p>No recent activity</p>';
+                }}
+            }})
+            .catch(error => {{
+                document.getElementById('recent-activity').innerHTML = '<p>Unable to load recent activity</p>';
+            }});
+    </script>
+</body>
+</html>
+"#,
+        styles = get_admin_styles(),
+        nav = get_admin_nav(),
+        deployment_count = deployment_count,
+        profile_count = profile_count,
+        system_status = system_status
+    );
+    
+    Html(html)
+}
+
+/// Admin users management page
+pub async fn admin_users_handler() -> Html<String> {
+    let html = format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>User Management - Administration</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>{styles}</style>
+</head>
+<body>
+    {nav}
+    
+    <div class="container">
+        <div class="header">
+            <h1>👥 User Management</h1>
+            <p>Manage user accounts, roles, and permissions</p>
+        </div>
+        
+        <div class="admin-sidebar">
+            <div class="sidebar">
+                <h3>Administration</h3>
+                <ul>
+                    <li><a href="/admin">Dashboard</a></li>
+                    <li><a href="/admin/users" class="active">User Management</a></li>
+                    <li><a href="/admin/plugins">Plugin Marketplace</a></li>
+                    <li><a href="/admin/settings">System Settings</a></li>
+                    <li><a href="/admin/monitoring">Monitoring</a></li>
+                    <li><a href="/admin/logs">System Logs</a></li>
+                </ul>
+            </div>
+            
+            <div class="main-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>User Accounts</h2>
+                    <button class="btn" onclick="showCreateUserModal()">Create New User</button>
+                </div>
+                
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table">
+                            <tr>
+                                <td colspan="6" style="text-align: center;">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create User Modal -->
+    <div id="createUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px;">
+            <h3>Create New User</h3>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role:</label>
+                    <select id="role" name="role">
+                        <option value="user">User</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn" style="background: #6b7280;" onclick="hideCreateUserModal()">Cancel</button>
+                    <button type="submit" class="btn">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function loadUsers() {{
+            fetch('/api/admin/users')
+                .then(response => response.json())
+                .then(users => {{
+                    const tbody = document.getElementById('users-table');
+                    if (users.length === 0) {{
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
+                        return;
+                    }}
+                    
+                    tbody.innerHTML = users.map(user => `
+                        <tr>
+                            <td>${{user.username}}</td>
+                            <td>${{user.email}}</td>
+                            <td>${{user.role}}</td>
+                            <td><span class="status ${{user.status === 'active' ? 'online' : 'offline'}}">${{user.status}}</span></td>
+                            <td>${{user.last_login || 'Never'}}</td>
+                            <td>
+                                <button class="btn" style="padding: 5px 10px; margin-right: 5px;" onclick="editUser('${{user.id}}')">Edit</button>
+                                <button class="btn-danger" style="padding: 5px 10px;" onclick="deleteUser('${{user.id}}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }})
+                .catch(error => {{
+                    document.getElementById('users-table').innerHTML = '<tr><td colspan="6" style="text-align: center;">Error loading users</td></tr>';
+                }});
+        }}
+        
+        function showCreateUserModal() {{
+            document.getElementById('createUserModal').style.display = 'block';
+        }}
+        
+        function hideCreateUserModal() {{
+            document.getElementById('createUserModal').style.display = 'none';
+        }}
+        
+        function editUser(userId) {{
+            alert('Edit user functionality to be implemented');
+        }}
+        
+        function deleteUser(userId) {{
+            if (confirm('Are you sure you want to delete this user?')) {{
+                fetch(`/api/admin/users/${{userId}}`, {{ method: 'DELETE' }})
+                    .then(response => {{
+                        if (response.ok) {{
+                            loadUsers();
+                        }} else {{
+                            alert('Failed to delete user');
+                        }}
+                    }});
+            }}
+        }}
+        
+        document.getElementById('createUserForm').addEventListener('submit', function(e) {{
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const userData = Object.fromEntries(formData);
+            
+            fetch('/api/admin/users', {{
+                method: 'POST',
+                headers: {{
+                    'Content-Type': 'application/json',
+                }},
+                body: JSON.stringify(userData)
+            }})
+            .then(response => {{
+                if (response.ok) {{
+                    hideCreateUserModal();
+                    loadUsers();
+                    e.target.reset();
+                }} else {{
+                    alert('Failed to create user');
+                }}
+            }});
+        }});
+        
+        // Load users on page load
+        loadUsers();
+    </script>
+</body>
+</html>
+"#,
+        styles = get_admin_styles(),
+        nav = get_admin_nav()
+    );
+    
+    Html(html)
+}
+
+/// Admin plugins management page
+pub async fn admin_plugins_handler() -> Html<String> {
+    let html = format!(r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Plugin Management - Administration</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>{styles}</style>
+</head>
+<body>
+    {nav}
+    
+    <div class="container">
+        <div class="header">
+            <h1>🧩 Plugin Marketplace Management</h1>
+            <p>Enable, disable, and configure system plugins</p>
+        </div>
+        
+        <div class="admin-sidebar">
+            <div class="sidebar">
+                <h3>Administration</h3>
+                <ul>
+                    <li><a href="/admin">Dashboard</a></li>
+                    <li><a href="/admin/users">User Management</a></li>
+                    <li><a href="/admin/plugins" class="active">Plugin Marketplace</a></li>
+                    <li><a href="/admin/settings">System Settings</a></li>
+                    <li><a href="/admin/monitoring">Monitoring</a></li>
+                    <li><a href="/admin/logs">System Logs</a></li>
+                </ul>
+            </div>
+            
+            <div class="main-content">
+                <h2>System Plugins</h2>
+                
+                <div class="grid grid-2">
+                    <div class="card">
+                        <h3>Core System Plugins</h3>
+                        <div id="core-plugins">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <strong>System Information Collector</strong>
+                                    <br><small>Collects comprehensive system hardware and software information</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('system_info', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <strong>Container Runtime Manager</strong>
+                                    <br><small>Manages Docker, Podman, and LXC container runtimes</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('container_runtime', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <strong>GitHub API Integration</strong>
+                                    <br><small>Provides GitHub repository search and analysis</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('github_api', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+                                <div>
+                                    <strong>Performance Optimizer</strong>
+                                    <br><small>Optimizes deployments based on system capabilities</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('performance_optimizer', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>Authentication Plugins</h3>
+                        <div id="auth-plugins">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <strong>SSO Manager</strong>
+                                    <br><small>Single Sign-On integration for enterprise authentication</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('sso_manager', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                <div>
+                                    <strong>Password Reset</strong>
+                                    <br><small>Email-based password reset functionality</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" onchange="togglePlugin('password_reset', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+                                <div>
+                                    <strong>RBAC System</strong>
+                                    <br><small>Role-based access control and user management</small>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" checked onchange="togglePlugin('rbac_system', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 20px;">
+                    <h3>Plugin Configuration</h3>
+                    <div id="plugin-config">
+                        <p>Select a plugin above to configure its settings.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .toggle {{
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }}
+        
+        .toggle input {{
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }}
+        
+        .slider {{
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 24px;
+        }}
+        
+        .slider:before {{
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }}
+        
+        input:checked + .slider {{
+            background-color: #2563eb;
+        }}
+        
+        input:checked + .slider:before {{
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }}
+    </style>
+    
+    <script>
+        function togglePlugin(pluginId, enabled) {{
+            fetch(`/api/admin/plugins/${{pluginId}}/toggle`, {{
+                method: 'POST',
+                headers: {{
+                    'Content-Type': 'application/json',
+                }},
+                body: JSON.stringify({{ enabled: enabled }})
+            }})
+            .then(response => {{
+                if (!response.ok) {{
+                    alert('Failed to toggle plugin');
+                    // Revert the toggle
+                    event.target.checked = !enabled;
+                }}
+            }});
+        }}
+        
+        // Load plugin status on page load
+        fetch('/api/admin/plugins')
+            .then(response => response.json())
+            .then(plugins => {{
+                // Update plugin toggles based on current status
+                plugins.forEach(plugin => {{
+                    const toggle = document.querySelector(`input[onchange*="${{plugin.id}}"]`);
+                    if (toggle) {{
+                        toggle.checked = plugin.enabled;
+                    }}
+                }});
+            }})
+            .catch(error => console.error('Failed to load plugin status:', error));
+    </script>
+</body>
+</html>
+"#,
+        styles = get_admin_styles(),
+        nav = get_admin_nav()
+    );
+    
+    Html(html)
+}
+
+/// Placeholder admin handlers and API endpoints
+pub async fn admin_settings_handler() -> Html<String> {
+    Html(format!(r#"<html><head><title>Settings</title><style>{}</style></head><body>{}<div class="container"><h1>System Settings - Coming Soon</h1></div></body></html>"#, get_admin_styles(), get_admin_nav()))
+}
+
+pub async fn admin_monitoring_handler() -> Html<String> {
+    Html(format!(r#"<html><head><title>Monitoring</title><style>{}</style></head><body>{}<div class="container"><h1>System Monitoring - Coming Soon</h1></div></body></html>"#, get_admin_styles(), get_admin_nav()))
+}
+
+pub async fn admin_logs_handler() -> Html<String> {
+    Html(format!(r#"<html><head><title>Logs</title><style>{}</style></head><body>{}<div class="container"><h1>System Logs - Coming Soon</h1></div></body></html>"#, get_admin_styles(), get_admin_nav()))
+}
+
+// Admin API Handlers (placeholders with mock data)
+pub async fn api_list_users() -> Json<Vec<serde_json::Value>> {
+    Json(vec![serde_json::json!({"id": "1", "username": "admin", "email": "admin@localhost", "role": "admin", "status": "active"})])
+}
+
+pub async fn api_create_user() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"success": true, "message": "User created"}))
+}
+
+pub async fn api_get_user(Path(_id): Path<String>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({"id": "1", "username": "admin", "role": "admin"}))
+}
+
+pub async fn api_delete_user(Path(_id): Path<String>) -> StatusCode {
+    StatusCode::NO_CONTENT
+}
+
+pub async fn api_list_plugins() -> Json<Vec<serde_json::Value>> {
+    Json(vec![
+        serde_json::json!({"id": "system_info", "name": "System Info", "enabled": true}),
+        serde_json::json!({"id": "password_reset", "name": "Password Reset", "enabled": false})
+    ])
+}
+
+pub async fn api_toggle_plugin(Path(_id): Path<String>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({"success": true, "message": "Plugin toggled"}))
+}
+
+pub async fn api_get_settings() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"system_name": "Automation Nation", "version": "1.0.0"}))
+}
+
+pub async fn api_update_settings() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"success": true, "message": "Settings updated"}))
+}
+
+pub async fn api_system_stats() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "uptime": "Running",
+        "recent_activity": [
+            {"action": "System Started", "timestamp": "2024-01-15T10:00:00Z", "details": "Web server initialized"}
+        ]
+    }))
+}
+
+pub async fn api_get_logs() -> Json<Vec<serde_json::Value>> {
+    Json(vec![serde_json::json!({"timestamp": "2024-01-15T10:00:00Z", "level": "INFO", "message": "Server started"})])
 }
