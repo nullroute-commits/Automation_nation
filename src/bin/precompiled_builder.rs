@@ -92,7 +92,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize logging
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     
@@ -173,13 +173,7 @@ async fn main() {
         }
     };
     
-    match result {
-        Ok(exit_code) => process::exit(exit_code),
-        Err(e) => {
-            error!("Build failed: {}", e);
-            process::exit(1);
-        }
-    }
+    result
 }
 
 /// Build precompiled binaries with the given configuration
