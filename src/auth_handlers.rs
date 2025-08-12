@@ -15,13 +15,14 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use log::{info, warn, error, debug};
-use crate::{SsoManager, PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation};
+use crate::SsoManager;
+// use crate::{PasswordResetManager, PasswordResetRequest, PasswordResetConfirmation}; // Temporarily disabled
 
 /// Authentication application state
 #[derive(Clone)]
 pub struct AuthState {
     pub sso_manager: Arc<tokio::sync::RwLock<SsoManager>>,
-    pub password_reset_manager: Arc<tokio::sync::RwLock<PasswordResetManager>>,
+    // pub password_reset_manager: Arc<tokio::sync::RwLock<PasswordResetManager>>, // Temporarily disabled
 }
 
 /// SSO login request
@@ -57,9 +58,9 @@ pub fn create_auth_router(state: AuthState) -> Router {
         .route("/auth/sso/login", post(initiate_sso_login))
         .route("/auth/sso/callback", get(handle_sso_callback))
         
-        // Password reset routes
-        .route("/auth/password-reset", post(initiate_password_reset))
-        .route("/auth/password-reset/confirm", post(confirm_password_reset))
+        // Password reset routes (temporarily disabled)
+        // .route("/auth/password-reset", post(initiate_password_reset))
+        // .route("/auth/password-reset/confirm", post(confirm_password_reset))
         
         // Authentication status and logout
         .route("/auth/status", get(get_auth_status))
@@ -138,7 +139,8 @@ pub async fn handle_sso_callback(
     }
 }
 
-/// Initiate password reset
+/*
+/// Initiate password reset (temporarily disabled)
 pub async fn initiate_password_reset(
     State(state): State<AuthState>,
     Json(request): Json<PasswordResetRequest>,
@@ -170,7 +172,7 @@ pub async fn initiate_password_reset(
     }
 }
 
-/// Confirm password reset with token
+/// Confirm password reset with token (temporarily disabled)
 pub async fn confirm_password_reset(
     State(state): State<AuthState>,
     Json(confirmation): Json<PasswordResetConfirmation>,
@@ -200,6 +202,7 @@ pub async fn confirm_password_reset(
         }
     }
 }
+*/
 
 /// Get authentication status
 pub async fn get_auth_status() -> Result<Json<AuthResponse>, StatusCode> {
