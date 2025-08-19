@@ -382,7 +382,7 @@ impl SystemProfiler {
         info!("Starting minimal system information collection {}", collection_id);
         
         // Use fast collection script with minimal dependencies
-        let output = TokioCommand::new("./collect_info_fast.sh")
+        let output = TokioCommand::new("./collect_info_optimized.sh")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .env("MAX_PACKAGES", "10") // Reduced for speed
