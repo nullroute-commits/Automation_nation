@@ -228,7 +228,7 @@ impl SystemProfiler {
         
         // Choose optimal script based on configuration
         let script_path = if self.config.enable_parallel {
-            "./collect_info_optimized.sh"
+            "./collect_info_ultra_optimized.sh"
         } else {
             &self.config.script_path
         };
