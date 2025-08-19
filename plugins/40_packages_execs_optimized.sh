@@ -55,7 +55,10 @@ collect_packages_fast() {
             if dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' "$pkg*" 2>/dev/null | head -1 | grep -q "install ok installed"; then
                 local package_info=$(dpkg-query -W -f='${Package}\t${Version}\n' "$pkg*" 2>/dev/null | head -1)
                 local package_name=$(echo "$package_info" | cut -f1)
-                local package_version=$(echo "$package_info" | cut -f2)
+            local dpkg_output=$(dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' "$pkg*" 2>/dev/null | head -1)
+            if echo "$dpkg_output" | grep -q "install ok installed"; then
+                local package_name=$(echo "$dpkg_output" | cut -f1)
+                local package_version=$(echo "$dpkg_output" | cut -f2)
                 
                 if [ -n "$package_name" ] && [ -n "$package_version" ]; then
                     if [ "$first" = false ]; then
