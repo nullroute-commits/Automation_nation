@@ -5,6 +5,13 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: file:/proc/cpuinfo
+# DEPENDS: file:/proc/meminfo
+# DEPENDS: command:df
+# DEPENDS: command:lspci
+# DEPENDS: command:lsusb
+# DEPENDS: command:bc
+
 ARCH="$1"
 
 get_hardware_info() {

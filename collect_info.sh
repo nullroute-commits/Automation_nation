@@ -1,6 +1,7 @@
 #!/bin/bash
 # Main orchestrator for plugin-based system info collection (JSON output)
 # Supports top 10 architectures per 2024 Q4 market reports.
+# Includes comprehensive dependency management and validation.
 
 set -e
 
@@ -11,6 +12,17 @@ PLUGINS=()
 # Configuration options
 ENABLE_HASHING=${ENABLE_HASHING:-1}
 ENABLE_SUDO_SUPPORT=${ENABLE_SUDO_SUPPORT:-0}
+ENABLE_DEPENDENCY_VALIDATION=${ENABLE_DEPENDENCY_VALIDATION:-1}
+
+# Load dependency manager if available
+DEPENDENCY_MANAGER="./dependency_manager.sh"
+if [[ -f "$DEPENDENCY_MANAGER" ]] && [[ -x "$DEPENDENCY_MANAGER" ]]; then
+    # shellcheck source=dependency_manager.sh
+    source "$DEPENDENCY_MANAGER"
+    DEPENDENCY_MANAGER_AVAILABLE=1
+else
+    DEPENDENCY_MANAGER_AVAILABLE=0
+fi
 
 TOP_ARCHS="x86_64 arm64 i386 ppc64le s390x riscv64 mips64 aarch32 sparc64 loongarch64"
 
@@ -82,8 +94,9 @@ check_privilege_support() {
 usage() {
   echo "Usage: $0 [-o output.json] [-h]"
   echo "Environment variables:"
-  echo "  ENABLE_HASHING=0      - Disable CRC32 hashing of datasets (default: 1)"
-  echo "  ENABLE_SUDO_SUPPORT=1 - Enable sudo privilege detection (default: 0)"
+  echo "  ENABLE_HASHING=0                - Disable CRC32 hashing of datasets (default: 1)"
+  echo "  ENABLE_SUDO_SUPPORT=1           - Enable sudo privilege detection (default: 0)"
+  echo "  ENABLE_DEPENDENCY_VALIDATION=0  - Disable dependency validation (default: 1)"
   exit 1
 }
 
@@ -176,6 +189,15 @@ ARCH=$(detect_arch)
 COLLECTION_START_TIME=$(get_timestamp)
 HAS_SUDO=$(check_privilege_support)
 
+# Initialize dependency manager if available
+if [[ "$DEPENDENCY_MANAGER_AVAILABLE" -eq 1 ]] && [[ "$ENABLE_DEPENDENCY_VALIDATION" -eq 1 ]]; then
+    echo "Initializing dependency management..." >&2
+    init_dependency_manager >&2 2>/dev/null || {
+        echo "Warning: Failed to initialize dependency manager, continuing without validation..." >&2
+        DEPENDENCY_MANAGER_AVAILABLE=0
+    }
+fi
+
 # Start with basic structure and collection metadata
 JSON="{\"detected_architecture\": \"$ARCH\","
 JSON+="\"collection_metadata\": {"
@@ -190,6 +212,13 @@ FIRST=1
 for plugin in "${PLUGINS[@]}"; do
   plugin_basename=$(basename "$plugin")
   function_name=$(extract_function_name "$plugin")
+  
+  # Validate plugin dependencies if dependency manager is available
+  if [[ "$DEPENDENCY_MANAGER_AVAILABLE" -eq 1 ]] && [[ "$ENABLE_DEPENDENCY_VALIDATION" -eq 1 ]]; then
+    if ! validate_plugin_dependencies "$plugin" >/dev/null 2>&1; then
+      echo "Warning: Plugin $plugin_basename has unmet dependencies. Executing with fallbacks..." >&2
+    fi
+  fi
   
   # Calculate plugin file hash
   plugin_hash=$(hash_plugin_content "$plugin")

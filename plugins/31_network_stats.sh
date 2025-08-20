@@ -6,6 +6,11 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: command:ip
+# DEPENDS: command:ss
+# DEPENDS: command:netstat
+# DEPENDS: file:/proc/net/route
+
 ARCH="$1"
 
 # Configuration limits (can be overridden by environment variables)

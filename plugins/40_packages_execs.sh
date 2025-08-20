@@ -6,6 +6,11 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: command:dpkg
+# DEPENDS: command:rpm
+# DEPENDS: command:find
+# DEPENDS: command:which
+
 ARCH="$1"
 
 # Configuration limits

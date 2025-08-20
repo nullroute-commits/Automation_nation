@@ -5,6 +5,10 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: command:uname
+# DEPENDS: file:/etc/os-release
+# DEPENDS: capability:read_proc
+
 ARCH="$1"
 
 get_os_info() {
