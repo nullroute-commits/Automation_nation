@@ -6,6 +6,12 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: command:docker
+# DEPENDS: command:podman
+# DEPENDS: command:kubectl
+# DEPENDS: file:/proc/self/cgroup
+# DEPENDS: command:systemd-detect-virt
+
 ARCH="$1"
 
 get_virtualization_info() {

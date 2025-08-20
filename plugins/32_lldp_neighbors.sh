@@ -6,6 +6,12 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: command:ip
+# DEPENDS: command:arp
+# DEPENDS: command:lldpctl
+# DEPENDS: command:brctl
+# DEPENDS: command:docker
+
 ARCH="$1"
 
 # Configuration limits (can be overridden by environment variables)
