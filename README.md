@@ -6,14 +6,17 @@
 
 This repository contains `collect_info.sh` - a sophisticated bash script that collects comprehensive system information through a modular plugin architecture. The tool is designed for testing and development with a focus on reliability, performance, and cross-platform compatibility.
 
+The system includes comprehensive dependency management with automatic validation, graceful fallbacks, and detailed reporting. See [DEPENDENCY_MANAGEMENT.md](DEPENDENCY_MANAGEMENT.md) for complete documentation.
+
 ## Key Features
 
-- 🔍 **Plugin-Based Architecture**: Modular design with 8 specialized collection plugins
+- 🔍 **Plugin-Based Architecture**: Modular design with 9 specialized collection plugins
 - 🏗️ **Multi-Architecture Support**: Works across 10 major CPU architectures
 - 📋 **JSON Output**: Structured data with metadata and integrity verification
 - 🧪 **Comprehensive Testing**: Full BATS test suite for reliability
 - ⚡ **Performance Variants**: Multiple optimized versions available
 - 🔒 **Security Features**: Configurable privilege escalation with safety controls
+- 🔧 **Dependency Management**: Comprehensive modular dependency validation and fallback system
 
 ## Quick Start
 
@@ -28,6 +31,31 @@ This repository contains `collect_info.sh` - a sophisticated bash script that co
 
 # View help
 ./collect_info.sh -h
+
+# Use dependency management
+./dependency_manager.sh check                    # Validate all dependencies
+./dependency_manager.sh validate plugins/10_os_info.sh  # Validate specific plugin
+./dependency_manager.sh report json             # Generate dependency report
+```
+
+### Dependency Management
+
+```bash
+# Check system dependencies
+./dependency_manager.sh check
+
+# Validate plugin dependencies
+./dependency_manager.sh validate plugins/10_os_info.sh
+
+# Generate dependency reports
+./dependency_manager.sh report json
+./dependency_manager.sh report text
+
+# Run with dependency validation (default)
+./collect_info.sh
+
+# Run without dependency validation
+ENABLE_DEPENDENCY_VALIDATION=0 ./collect_info.sh
 ```
 
 ### Running Tests
@@ -75,6 +103,25 @@ plugins/
 - **`collect_info_fast.sh`** - Parallel execution for speed
 - **`collect_info_optimized.sh`** - Simplified optimized version
 - **`collect_info_ultra_optimized.sh`** - Minimal overhead version
+
+## Dependency Management
+
+The project includes a comprehensive dependency management system:
+
+- **`dependency_manager.sh`** - Core dependency validation and management system
+- **`DEPENDENCY_MANAGEMENT.md`** - Complete dependency management documentation
+- **`test_dependency_manager.sh`** - Comprehensive test suite for dependency system
+- **`validate_requirements.sh`** - Final validation script for all requirements
+
+### Dependency Features
+
+- **Command Dependencies**: Validates external tool availability
+- **File Dependencies**: Checks required files and directories
+- **Capability Dependencies**: System capability validation
+- **Plugin Dependencies**: Inter-plugin dependency resolution
+- **Environment Dependencies**: Environment variable validation
+- **Package Dependencies**: System package detection
+- **Permission Dependencies**: Permission requirement checking
 
 ## Testing Framework
 
