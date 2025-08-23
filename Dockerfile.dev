@@ -18,7 +18,9 @@ RUN apt-get update && apt-get install -y \
     procps \
     net-tools \
     iproute2 \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Create app user
 RUN useradd -m -u 1000 -s /bin/bash appuser
@@ -29,21 +31,13 @@ WORKDIR /app
 # Create virtual environment
 RUN python -m venv .venv
 
-# Activate virtual environment and install basic packages
+# Copy requirements file
+COPY requirements.txt .
+
+# Activate virtual environment and install packages
 RUN . .venv/bin/activate && \
-    pip install --upgrade pip setuptools wheel && \
-    pip install \
-    psycopg2-binary \
-    sqlalchemy \
-    fastapi \
-    uvicorn \
-    python-dotenv \
-    pytest \
-    pytest-asyncio \
-    black \
-    isort \
-    flake8 \
-    debugpy
+    pip install --upgrade pip && \
+    pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 # Change ownership of the app directory
 RUN chown -R appuser:appuser /app
