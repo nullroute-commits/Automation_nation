@@ -1,0 +1,75 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: automation_nation_dev
+      POSTGRES_USER: automation_dev
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U automation_dev -d automation_nation_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - automation_network
+
+  # Python Development Environment
+  python-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      - DATABASE_URL=postgresql://automation_dev:dev_password@postgres:5432/automation_nation_dev
+      - PYTHONPATH=/app
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # debugpy port
+    volumes:
+      - .:/app:rw
+      - python_venv:/app/.venv
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - automation_network
+    command: /bin/bash -c "source .venv/bin/activate && tail -f /dev/null"
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@automation-nation.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - automation_network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  python_venv:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  automation_network:
+    driver: bridge
