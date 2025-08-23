@@ -1,0 +1,58 @@
+# Dockerfile for Python Development Environment
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    postgresql-client \
+    bash \
+    jq \
+    vim \
+    procps \
+    net-tools \
+    iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
+# Set working directory
+WORKDIR /app
+
+# Create virtual environment
+RUN python -m venv .venv
+
+# Activate virtual environment and install basic packages
+RUN . .venv/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install \
+    psycopg2-binary \
+    sqlalchemy \
+    fastapi \
+    uvicorn \
+    python-dotenv \
+    pytest \
+    pytest-asyncio \
+    black \
+    isort \
+    flake8 \
+    debugpy
+
+# Change ownership of the app directory
+RUN chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose ports
+EXPOSE 8000 5678
+
+# Default command (keep container running for development)
+CMD ["/bin/bash", "-c", "source .venv/bin/activate && tail -f /dev/null"]
