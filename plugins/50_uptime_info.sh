@@ -6,6 +6,11 @@
 # When plugins are executed via command substitution in the main script,
 # 'set -e' can cause unexpected behavior and silent failures.
 
+# DEPENDS: file:/proc/uptime
+# DEPENDS: file:/proc/loadavg
+# DEPENDS: command:uptime
+# DEPENDS: command:who
+
 ARCH="$1"
 
 get_uptime_info() {
