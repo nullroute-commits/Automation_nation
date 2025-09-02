@@ -602,3 +602,25 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
+# Auto-install missing dependencies
+auto_install_dependencies() {
+    local missing_deps=()
+    
+    command -v bc >/dev/null 2>&1 || missing_deps+=("bc")
+    command -v jq >/dev/null 2>&1 || missing_deps+=("jq")
+    
+    if [[ ${#missing_deps[@]} -eq 0 ]]; then
+        echo "All critical dependencies available"
+        return 0
+    fi
+    
+    echo "Installing missing dependencies: ${missing_deps[*]}"
+    
+    if command -v apt-get >/dev/null 2>&1; then
+        for dep in "${missing_deps[@]}"; do
+            sudo apt-get install -y "$dep" 2>/dev/null || echo "Failed to install $dep"
+        done
+    fi
+    
+    return 0
+}

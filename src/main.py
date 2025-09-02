@@ -43,16 +43,46 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
+    """Enhanced health check endpoint with actual validation"""
+    health_status = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "database": "connected",  # TODO: Implement actual DB health check
-        "services": {
-            "api": "running",
-            "database": "connected"
-        }
+        "services": {}
     }
+    
+    # Database health check
+    try:
+        # Simple database connectivity test
+        import psycopg2
+        conn = psycopg2.connect(
+            host="postgres",
+            database="automation_nation_dev", 
+            user="automation_dev",
+            password="dev_password"
+        )
+        conn.close()
+        health_status["services"]["database"] = "connected"
+    except Exception as e:
+        health_status["services"]["database"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # API service health
+    health_status["services"]["api"] = "running"
+    
+    # Dependency health
+    import subprocess
+    deps_ok = True
+    for dep in ["bc", "jq", "curl"]:
+        result = subprocess.run(["which", dep], capture_output=True)
+        if result.returncode != 0:
+            deps_ok = False
+            break
+    
+    health_status["services"]["dependencies"] = "available" if deps_ok else "missing"
+    if not deps_ok:
+        health_status["status"] = "degraded"
+    
+    return health_status
 
 
 @app.post("/collect/system-info")
