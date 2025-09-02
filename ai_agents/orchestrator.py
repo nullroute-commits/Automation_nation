@@ -13,13 +13,13 @@ from typing import Dict, List, Any
 from datetime import datetime
 from pathlib import Path
 
-from base_agent import BaseAgent
-from dependency_agent import DependencyAgent
-from security_agent import SecurityAgent
-from performance_agent import PerformanceAgent
-from license_agent import LicenseAgent
-from qa_agent import QualityAssuranceAgent
-from documentation_agent import DocumentationAgent
+from .base_agent import BaseAgent
+from .dependency_agent import DependencyAgent
+from .security_agent import SecurityAgent
+from .performance_agent import PerformanceAgent
+from .license_agent import LicenseAgent
+from .qa_agent import QualityAssuranceAgent
+from .documentation_agent import DocumentationAgent
 
 
 class SprintOrchestrator(BaseAgent):

@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any, List
 from pathlib import Path
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 
 class DependencyAgent(BaseAgent):
